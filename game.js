@@ -89,7 +89,7 @@ function renderBoard() {
         }
     }
 
-    // AI spelers renderen bovenin met zichtbare handkaarten (0000_back.png)
+    // AI spelers renderen bovenin
     const aiContainer = document.getElementById('ai-container');
     if (aiContainer) {
         aiContainer.innerHTML = '';
@@ -174,6 +174,7 @@ function renderBoard() {
                     const img = document.createElement('img');
                     img.src = monster.image;
                     img.className = 'ai-card-img';
+                    img.title = `${monster.name} (LV ${monster.level || 1}) - HP: ${monster.currentHp}/${monster.maxHp}`;
                     img.onclick = (e) => {
                         e.stopPropagation();
                         handleTargetClick('monster', i, f);
@@ -222,7 +223,7 @@ function renderBoard() {
                 img.src = monster.image;
                 img.className = 'card-img';
                 img.style.cursor = "pointer";
-                img.title = "Klik om dit monster te selecteren als aanvaller";
+                img.title = `${monster.name} (LV ${monster.level || 1}) - HP: ${monster.currentHp}/${monster.maxHp}. Klik om te selecteren als aanvaller`;
                 img.onclick = () => toggleAttackerSelection(i);
                 slot.appendChild(img);
             } else {
@@ -287,26 +288,27 @@ function handleTargetClick(targetType, aiIndex, targetIndex) {
         let targetLevel = targetMonster.level || 1;
 
         if (attackerLevel === targetLevel) {
-            showStatus(`⚠️ Gelijk Level (${attackerLevel})! Beide monsters vernietigd[cite: 1].`, true);
+            showStatus(`⚠️ Gelijk Level (${attackerLevel})! Beide monsters vernietigd[span_0](start_span)[span_0](end_span).`, true);
             discardPile.push(attackerCard);
             discardPile.push(targetMonster);
             humanPlayer.frontLine[selectedAttacker.slotIndex] = null;
             ai.frontLine[targetIndex] = null;
         } else {
+            // HP verlagen met exact 1 hit per aanval (LV1=1, LV2=2, LV3=3, LV4=4)
             targetMonster.currentHp--;
             if (targetMonster.currentHp <= 0) {
-                showStatus(`🎯 Hit! Vijandelijk monster (${targetMonster.name}) is verslagen[cite: 1]!`, false);
+                showStatus(`🎯 Hit! Vijandelijk monster (${targetMonster.name}) is verslagen[span_1](start_span)[span_1](end_span)!`, false);
                 discardPile.push(targetMonster);
                 ai.frontLine[targetIndex] = null;
             } else {
-                showStatus(`⚔️ Hit uitgevoerd op ${targetMonster.name} (HP: ${targetMonster.currentHp}/${targetMonster.maxHp})[cite: 1]`, false);
+                showStatus(`⚔️ Hit uitgevoerd op ${targetMonster.name} (HP: ${targetMonster.currentHp}/${targetMonster.maxHp})[span_2](start_span)[span_2](end_span)`, false);
             }
         }
     } 
     else if (targetType === 'building') {
         let aiHasMonsters = ai.frontLine.some(m => m !== null);
         if (aiHasMonsters) {
-            showStatus("🛡️ Gouden Schild Regel: Versla eerst alle monsters in de Front Line[cite: 1]!", true);
+            showStatus("🛡️ Gouden Schild Regel: Versla eerst alle monsters in de Front Line[span_3](start_span)[span_3](end_span)!", true);
             selectedAttacker = null;
             setTimeout(renderBoard, 2000);
             return;
@@ -315,7 +317,7 @@ function handleTargetClick(targetType, aiIndex, targetIndex) {
         let targetBuilding = ai.backLine[targetIndex];
         if (!targetBuilding) return;
 
-        showStatus(`🏙️ Doelwit geraakt! Gebouw (${targetBuilding.name}) is vernietigd[cite: 1].`, false);
+        showStatus(`🏙️ Doelwit geraakt! Gebouw (${targetBuilding.name}) is vernietigd[span_4](start_span)[span_4](end_span).`, false);
         discardPile.push(targetBuilding);
         ai.backLine[targetIndex] = null;
     }
@@ -335,7 +337,7 @@ function playCardFromHand(index) {
         pendingSabotageCard = null;
         const alreadyHas = humanPlayer.backLine.some(c => c && c.name === card.name);
         if (alreadyHas) {
-            showStatus(`Je hebt al een ${card.name}! Gebouwen moeten uniek zijn[cite: 1].`, true);
+            showStatus(`Je hebt al een ${card.name}! Gebouwen moeten uniek zijn[span_5](start_span)[span_5](end_span).`, true);
             return;
         }
 
@@ -353,16 +355,17 @@ function playCardFromHand(index) {
         pendingSabotageCard = null;
         const emptyIndex = humanPlayer.frontLine.indexOf(null);
         if (emptyIndex !== -1) {
-            card.maxHp = card.maxHp || 2;
-            card.currentHp = card.maxHp;
+            // Zorg dat HP exact gelijk is aan het level (LV1=1, LV2=2, LV3=3, LV4=4)
             card.level = card.level || 1;
+            card.maxHp = card.level;
+            card.currentHp = card.maxHp;
 
             humanPlayer.frontLine[emptyIndex] = card;
             humanPlayer.hand.splice(index, 1);
-            showStatus(`👾 Monster opgeroepen: ${card.name}`);
+            showStatus(`👾 Monster opgeroepen: ${card.name} (LV ${card.level})`);
             setTimeout(endTurn, 1000);
         } else {
-            showStatus("Je Front Line zit vol (maximaal 3 monsters)[cite: 1]!", true);
+            showStatus("Je Front Line zit vol (maximaal 3 monsters)[span_6](start_span)[span_6](end_span)!", true);
         }
     } 
     else {
@@ -391,7 +394,7 @@ function executeSabotageOnTarget(targetAiIndex, targetType = null, targetIndex =
             let destroyedBuilding = targetAI.backLine[bIndex];
             targetAI.backLine[bIndex] = null;
             discardPile.push(destroyedBuilding);
-            showStatus(`💥 DEMOLISH! Gebouw (${destroyedBuilding.name}) van ${targetAI.name} direct vernietigd[cite: 1]!`, true);
+            showStatus(`💥 DEMOLISH! Gebouw (${destroyedBuilding.name}) van ${targetAI.name} direct vernietigd[span_7](start_span)[span_7](end_span)!`, true);
         } else {
             showStatus(`${targetAI.name} heeft geen gebouwen om te slopen!`, true);
         }
@@ -400,17 +403,17 @@ function executeSabotageOnTarget(targetAiIndex, targetType = null, targetIndex =
         for (let d = 0; d < 2; d++) {
             if (deck.length > 0) targetAI.hand.push(deck.pop());
         }
-        showStatus(`🃏 DRAW TWO! ${targetAI.name} heeft 2 extra kaarten getrokken[cite: 1].`);
+        showStatus(`🃏 DRAW TWO! ${targetAI.name} heeft 2 extra kaarten getrokken[span_8](start_span)[span_8](end_span).`);
     } 
     else if (cardNameLower.includes('swap') || cardNameLower.includes('wissel')) {
         let tempHand = humanPlayer.hand;
         humanPlayer.hand = targetAI.hand;
         targetAI.hand = tempHand;
-        showStatus(`🔄 HAND SWAP! Je hand is gewisseld met ${targetAI.name}[cite: 1]!`);
+        showStatus(`🔄 HAND SWAP! Je hand is gewisseld met ${targetAI.name}[span_9](start_span)[span_9](end_span)!`);
     } 
     else {
         targetAI.skipNextTurn = true;
-        showStatus(`⚡ SABOTAGE: ${card.name}! ${targetAI.name} slaat zijn volgende beurt over[cite: 1].`, true);
+        showStatus(`⚡ SABOTAGE: ${card.name}! ${targetAI.name} slaat zijn volgende beurt over[span_10](start_span)[span_10](end_span).`, true);
     }
 
     pendingSabotageCard = null;
@@ -434,8 +437,8 @@ function endTurn() {
     let p = players[currentPlayerIndex];
 
     if (currentPlayerIndex === 0 && pendingWinPlayer === 0) {
-        showStatus("🎉 GEFELICITEERD! Je hebt 7 unieke gebouwen een volle ronde verdedigd en gewonnen[cite: 1]!", false);
-        alert("🎉 GEFELICITEERD! Jij bent de absolute winnaar van CITTY BUILDER[cite: 1]!");
+        showStatus("🎉 GEFELICITEERD! Je hebt 7 unieke gebouwen een volle ronde verdedigd en gewonnen[span_11](start_span)[span_11](end_span)!", false);
+        alert("🎉 GEFELICITEERD! Jij bent de absolute winnaar van CITTY BUILDER[span_12](start_span)[span_12](end_span)!");
         initGame(players.length);
         return;
     }
@@ -457,8 +460,8 @@ function playAITurn() {
     let actionDone = false;
 
     if (pendingWinPlayer === ai.id) {
-        showStatus(`🏆 ${ai.name} heeft gewonnen door 7 gebouwen een hele ronde te verdedigen[cite: 1]!`, true);
-        alert(`🏆 ${ai.name} heeft gewonnen[cite: 1]!`);
+        showStatus(`🏆 ${ai.name} heeft gewonnen door 7 gebouwen een hele ronde te verdedigen[span_13](start_span)[span_13](end_span)!`, true);
+        alert(`🏆 ${ai.name} heeft gewonnen[span_14](start_span)[span_14](end_span)!`);
         initGame(players.length);
         return;
     }
@@ -475,8 +478,9 @@ function playAITurn() {
                 let mIndex = targetOpponent.frontLine.findIndex(m => m !== null);
                 if (mIndex !== -1) {
                     let targetMonster = targetOpponent.frontLine[mIndex];
+                    // Ook de AI valt aan met 1 HP per keer
                     targetMonster.currentHp--;
-                    showStatus(`🤖 ${ai.name} valt ${targetOpponent.name} zijn monster (${targetMonster.name}) aan[cite: 1]!`, true);
+                    showStatus(`🤖 ${ai.name} valt ${targetOpponent.name} zijn monster (${targetMonster.name}) aan[span_15](start_span)[span_15](end_span)!`, true);
                     
                     if (targetMonster.currentHp <= 0) {
                         discardPile.push(targetMonster);
@@ -488,7 +492,7 @@ function playAITurn() {
                 let bIndex = targetOpponent.backLine.findIndex(b => b !== null);
                 if (bIndex !== -1) {
                     let targetBuilding = targetOpponent.backLine[bIndex];
-                    showStatus(`🤖 ${ai.name} breekt door en vernietigt ${targetOpponent.name} zijn gebouw (${targetBuilding.name})[cite: 1]!`, true);
+                    showStatus(`🤖 ${ai.name} breekt door en vernietigt ${targetOpponent.name} zijn gebouw (${targetBuilding.name})[span_16](start_span)[span_16](end_span)!`, true);
                     discardPile.push(targetBuilding);
                     targetOpponent.backLine[bIndex] = null;
                     actionDone = true;
@@ -519,12 +523,12 @@ function playAITurn() {
             if (card.type === 'monster') {
                 let emptySlot = ai.frontLine.indexOf(null);
                 if (emptySlot !== -1) {
-                    card.maxHp = card.maxHp || 2;
-                    card.currentHp = card.maxHp;
                     card.level = card.level || 1;
+                    card.maxHp = card.level;
+                    card.currentHp = card.maxHp;
 
                     ai.frontLine[emptySlot] = ai.hand.splice(i, 1)[0];
-                    showStatus(`🤖 ${ai.name} heeft een monster opgeroepen: ${card.name}`);
+                    showStatus(`🤖 ${ai.name} heeft een monster opgeroepen: ${card.name} (LV ${card.level})`);
                     actionDone = true;
                     break;
                 }
@@ -540,7 +544,7 @@ function playAITurn() {
             let opponents = players.filter(p => p.id !== ai.id);
             let randomOpponent = opponents[Math.floor(Math.random() * opponents.length)];
             randomOpponent.skipNextTurn = true;
-            showStatus(`🤖 ${ai.name} speelt sabotagekaart (${sCard.name}) op ${randomOpponent.name}[cite: 1]!`, true);
+            showStatus(`🤖 ${ai.name} speelt sabotagekaart (${sCard.name}) op ${randomOpponent.name}[span_17](start_span)[span_17](end_span)!`, true);
             actionDone = true;
         }
     }
@@ -559,7 +563,7 @@ function checkWinCondition() {
         if (uniqueBuildings >= 7) {
             if (pendingWinPlayer === null) {
                 pendingWinPlayer = p.id;
-                showStatus(`⚠️ ${p.name} heeft 7 unieke gebouwen! Verdedig ze tot de volgende beurt[cite: 1]!`, true);
+                showStatus(`⚠️ ${p.name} heeft 7 unieke gebouwen! Verdedig ze tot de volgende beurt[span_18](start_span)[span_18](end_span)!`, true);
             }
         }
     }

@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CITTY BUILDER - vs AI</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            margin: 0; padding: 0;
+            background-color: #1b4d3e;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: white;
+            display: flex; flex-direction: column;
+            height: 100vh; overflow: hidden;
+        }
+
+        /* STARTMENU STIJLEN */
+        .menu-screen {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            background: #14141f;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .game-title {
+            color: #ffeb3b;
+            font-size: 3.5rem;
+            margin-bottom: 40px;
+            letter-spacing: 3px;
+            text-shadow: 0 4px 10px rgba(0,0,0,0.5);
+        }
+
+        .menu-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            width: 350px;
+        }
+
+        .menu-btn {
+            background: linear-gradient(to bottom, #f0c27b, #c19b47);
+            border: none;
+            padding: 18px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #1a1a1a;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            transition: transform 0.1s, background 0.2s;
+            text-align: center;
+        }
+
+        .menu-btn:hover {
+            background: linear-gradient(to bottom, #ffd700, #d4af37);
+            transform: scale(1.02);
+        }
+
+        .menu-btn:active {
+            transform: scale(0.98);
+        }
+
+        /* REGELS / HOW TO PLAY SCHERM */
+        .rules-box {
+            background: #1e1e2f;
+            padding: 30px;
+            border-radius: 12px;
+            width: 650px;
+            max-width: 90vw;
+            height: 80vh;
+            display: flex;
+            flex-direction: column;
+            color: #fff;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.5);
+            border: 1px solid #c19b47;
+        }
+
+        .rules-content {
+            flex: 1;
+            overflow-y: auto;
+            padding-right: 10px;
+            margin-bottom: 15px;
+        }
+
+        .rules-content h3 {
+            color: #f0c27b;
+            margin-top: 15px;
+        }
+        .rules-content p {
+            font-size: 0.95rem;
+            line-height: 1.5;
+            color: #ddd;
+        }
+        .rules-content ul {
+            padding-left: 20px;
+            color: #ddd;
+        }
+        .rules-content li {
+            margin-bottom: 6px;
+            font-size: 0.95rem;
+        }
+
+        /* SPELBORD STIJLEN */
+        header {
+            text-align: center;
+            background: rgba(0, 0, 0, 0.4);
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 8px 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+        }
+        header h1 { margin: 0; font-size: 20px; letter-spacing: 2px; }
+
+        #turn-indicator {
+            background: #ffeb3b; color: #000;
+            padding: 4px 12px; border-radius: 15px; font-weight: bold; font-size: 13px;
+        }
+
+        #game-board {
+            flex: 1; display: flex; flex-direction: column;
+            justify-content: space-between; align-items: center;
+            padding: 8px; overflow-y: auto;
+        }
+
+        #ai-container {
+            display: flex; gap: 10px; width: 100%; justify-content: center; flex-wrap: wrap;
+        }
+
+        .field-container {
+            width: 100%; max-width: 1000px;
+            display: flex; flex-direction: column; align-items: center; gap: 4px;
+            background: rgba(0, 0, 0, 0.2); padding: 6px;
+            border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .zone-title {
+            font-size: 11px; font-weight: bold; color: #d1d5db;
+            text-transform: uppercase; margin: 0;
+        }
+
+        .card-slots { display: flex; gap: 6px; min-height: 95px; align-items: center; justify-content: center; }
+
+        .slot {
+            width: 70px; height: 95px;
+            border: 1px dashed rgba(255, 255, 255, 0.3); border-radius: 6px;
+            display: flex; align-items: center; justify-content: center;
+            background: rgba(0, 0, 0, 0.2); font-size: 9px;
+            color: rgba(255, 255, 255, 0.5); text-align: center; padding: 2px;
+        }
+
+        .center-area { display: flex; gap: 25px; align-items: center; margin: 4px 0; }
+        .pile-container { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+        .pile-label { font-size: 11px; font-weight: bold; color: #d1d5db; }
+        .pile {
+            width: 75px; height: 105px;
+            border: 1px dashed rgba(255, 255, 255, 0.3); border-radius: 6px;
+            display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.2);
+        }
+
+        .card-img {
+            width: 75px; height: 105px; border-radius: 6px;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.5); object-fit: cover;
+            cursor: pointer; transition: transform 0.2s;
+        }
+        .ai-card-img {
+            width: 55px; height: 75px; border-radius: 4px; object-fit: cover;
+        }
+
+        #player-hand-container {
+            width: 100%; background: rgba(0, 0, 0, 0.4);
+            border-top: 2px solid rgba(255, 255, 255, 0.1);
+            padding: 8px; display: flex; flex-direction: column; align-items: center; gap: 4px;
+        }
+        #player-hand { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; max-width: 1000px; }
+        #player-hand .card-img:hover { transform: translateY(-10px) scale(1.05); }
+
+        .status-bar { font-size: 12px; color: #ffeb3b; }
+    </style>
+</head>
+<body>
+
+    <!-- 1. STARTMENU SCHERM -->
+    <div id="main-menu" class="menu-screen">
+        <h1 class="game-title">CITTY BUILDER</h1>
+        <div class="menu-buttons">
+            <button class="menu-btn" onclick="startNewGame()">NEW GAME</button>
+            <button class="menu-btn" onclick="showHowToPlay()">HOW TO PLAY</button>
+            <button class="menu-btn" onclick="alert('Settings komen binnenkort!')">SETTINGS</button>
+        </div>
+    </div>
+
+    <!-- 2. HOW TO PLAY / REGELS SCHERM -->
+    <div id="rules-screen" class="menu-screen" style="display: none;">
+        <div class="rules-box">
+            <div class="rules-content" id="rules-container">
+                <!-- Wordt automatisch gevuld vanuit rules.js -->
+            </div>
+            <button class="menu-btn" onclick="showMainMenu()" style="width: 100%;">TERUG</button>
+        </div>
+    </div>
+
+    <!-- 3. HET DAADWERKELIJKE SPELBORD -->
+    <div id="game-container" style="display: none; flex-direction: column; height: 100vh;">
+        <header>
+            <h1>🏙️ CITTY BUILDER</h1>
+            <div id="turn-indicator">Jouw Beurt</div>
+        </header>
+
+        <div id="game-board">
+            <!-- AI SPELERS Bovenin -->
+            <div id="ai-container"></div>
+
+            <!-- Midden: Trekstapel & Aflegstapel -->
+            <div class="center-area">
+                <div class="pile-container">
+                    <span class="pile-label">Trekstapel (<span id="deck-count">0</span>)</span>
+                    <div class="pile" id="draw-pile"></div>
+                </div>
+                <div class="pile-container">
+                    <span class="pile-label">Aflegstapel (<span id="discard-count">0</span>)</span>
+                    <div class="pile" id="discard-pile"></div>
+                </div>
+            </div>
+
+            <!-- Jouw Veld -->
+            <div class="field-container" style="background: rgba(0, 255, 0, 0.08);">
+                <p class="zone-title">👤 Jouw Front Line (Monsters - Max 3)</p>
+                <div class="card-slots" id="front-line"></div>
+                <p class="zone-title" style="margin-top: 2px;">👤 Jouw Back Line (Gebouwen: <span id="player-building-count">0</span>/7)</p>
+                <div class="card-slots" id="back-line"></div>
+            </div>
+
+            <!-- Jouw Hand -->
+            <div id="player-hand-container">
+                <div class="status-bar" id="status-text">Klik op een gebouw of monster in je hand om te spelen!</div>
+                <div id="player-hand"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="cards.js"></script>
+    <script src="rules.js"></script>
+    <script src="game.js"></script>
+    
+    <script>
+        // Laad automatisch alle regels vanuit rules.js
+        window.addEventListener('DOMContentLoaded', () => {
+            const container = document.getElementById('rules-container');
+            if (container && typeof GAME_RULES_HTML !== 'undefined') {
+                container.innerHTML = GAME_RULES_HTML;
+            }
+        });
+
+        function startNewGame() {
+            document.getElementById('main-menu').style.display = 'none';
+            document.getElementById('rules-screen').style.display = 'none';
+            document.getElementById('game-container').style.display = 'flex';
+            if (typeof initGame === 'function') {
+                initGame(3);
+            } else {
+                console.error("game.js of initGame is niet correct geladen!");
+            }
+        }
+
+        function showHowToPlay() {
+            document.getElementById('main-menu').style.display = 'none';
+            document.getElementById('rules-screen').style.display = 'flex';
+        }
+
+        function showMainMenu() {
+            document.getElementById('rules-screen').style.display = 'none';
+            document.getElementById('main-menu').style.display = 'flex';
+        }
+    </script>
+</body>
+</html>

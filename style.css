@@ -1,0 +1,75 @@
+/* Stijl voor de menuschermen */
+.menu-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: #14141f;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.game-title {
+    color: #ffeb3b;
+    font-size: 3rem;
+    margin-bottom: 40px;
+    letter-spacing: 2px;
+}
+
+.menu-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    width: 350px;
+}
+
+/* Strakke gouden knoppen zoals in je voorbeeld */
+.menu-btn {
+    background: linear-gradient(to bottom, #f0c27b, #c19b47);
+    border: none;
+    padding: 18px;
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #1a1a1a;
+    border-radius: 8px;
+    cursor: pointer;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    transition: transform 0.1s, background 0.2s;
+    text-align: center;
+}
+
+.menu-btn:hover {
+    background: linear-gradient(to bottom, #ffd700, #d4af37);
+    transform: scale(1.02);
+}
+
+.menu-btn:active {
+    transform: scale(0.98);
+}
+
+/* Regels venster */
+.rules-box {
+    background: #1e1e2f;
+    padding: 30px;
+    border-radius: 12px;
+    width: 600px;
+    max-height: 80vh;
+    overflow-y: auto;
+    color: #fff;
+    box-shadow: 0 8px 16px rgba(0,0,0,0.5);
+    border: 1px solid #c19b47;
+}
+
+.rules-content h3 {
+    color: #f0c27b;
+    margin-top: 15px;
+}
+.rules-content p {
+    font-size: 0.95rem;
+    line-height: 1.4;
+    color: #ddd;
+}

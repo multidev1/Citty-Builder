@@ -255,8 +255,8 @@
 </head>
 <body>
 
-    <!-- INTRO MUZIEK (start direct bij laden van de pagina) -->
-    <audio id="intro-audio" src="intro.WAV" autoplay loop preload="auto"></audio>
+    <!-- INTRO MUZIEK (exact jouw intro.WAV bestand) -->
+    <audio id="intro-audio" src="intro.WAV" loop preload="auto"></audio>
 
     <!-- 0. INTRO SPLASH SCREEN -->
     <div id="intro-screen" onclick="startFromIntro()">
@@ -395,16 +395,25 @@
         let currentLang = 'nl';
         let chosenGameMode = 'ai';
 
+        // Probeer direct bij laden muziek af te spelen, en vang de eerste klik op het intro-scherm op
         window.addEventListener('DOMContentLoaded', () => {
             const audio = document.getElementById('intro-audio');
             if (audio) {
-                audio.play().catch(error => {
-                    console.log("Autoplay geblokkeerd, start bij eerste klik:", error);
+                audio.play().catch(() => {
+                    // Start direct op het intro-scherm bij de allereerste interactie van de bezoeker
+                    const unlockAudio = () => {
+                        audio.play();
+                        window.removeEventListener('click', unlockAudio);
+                        window.removeEventListener('touchstart', unlockAudio);
+                    };
+                    window.addEventListener('click', unlockAudio);
+                    window.addEventListener('touchstart', unlockAudio);
                 });
             }
             changeLanguage('nl');
         });
 
+        // Functie voor de "PRESS TO START" knop op het intro-scherm
         function startFromIntro() {
             const audio = document.getElementById('intro-audio');
             if (audio && audio.paused) {

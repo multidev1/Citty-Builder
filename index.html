@@ -255,11 +255,9 @@
 </head>
 <body>
 
-    <!-- INTRO MUZIEK (exact jouw intro.WAV bestand) -->
-    <audio id="intro-audio" src="intro.WAV" loop preload="auto"></audio>
-
-    <!-- 0. INTRO SPLASH SCREEN -->
+    <!-- 0. INTRO SPLASH SCREEN (Met ingebouwde audio fallback voor GitHub) -->
     <div id="intro-screen" onclick="startFromIntro()">
+        <audio id="intro-audio" src="intro.WAV" loop preload="auto"></audio>
         <div class="press-to-start-bar">
             <span class="blink-text">PRESS TO START</span>
         </div>
@@ -395,25 +393,23 @@
         let currentLang = 'nl';
         let chosenGameMode = 'ai';
 
-        // Probeer direct bij laden muziek af te spelen, en vang de eerste klik op het intro-scherm op
+        // Direct starten en automatisch ontgrendelen bij de eerste interactie op het intro-scherm
         window.addEventListener('DOMContentLoaded', () => {
             const audio = document.getElementById('intro-audio');
             if (audio) {
                 audio.play().catch(() => {
-                    // Start direct op het intro-scherm bij de allereerste interactie van de bezoeker
-                    const unlockAudio = () => {
+                    const unlockAndPlay = () => {
                         audio.play();
-                        window.removeEventListener('click', unlockAudio);
-                        window.removeEventListener('touchstart', unlockAudio);
+                        window.removeEventListener('pointerdown', unlockAndPlay);
+                        window.removeEventListener('keydown', unlockAndPlay);
                     };
-                    window.addEventListener('click', unlockAudio);
-                    window.addEventListener('touchstart', unlockAudio);
+                    window.addEventListener('pointerdown', unlockAndPlay);
+                    window.addEventListener('keydown', unlockAndPlay);
                 });
             }
             changeLanguage('nl');
         });
 
-        // Functie voor de "PRESS TO START" knop op het intro-scherm
         function startFromIntro() {
             const audio = document.getElementById('intro-audio');
             if (audio && audio.paused) {

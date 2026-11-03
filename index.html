@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CITTY BUILDER - vs AI</title>
+    <title>CITTY BUILDER</title>
     <link rel="stylesheet" href="style.css">
     <style>
         * { box-sizing: border-box; }
@@ -35,20 +35,21 @@
             margin-bottom: 40px;
             letter-spacing: 3px;
             text-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            text-align: center;
         }
 
         .menu-buttons {
             display: flex;
             flex-direction: column;
-            gap: 20px;
-            width: 350px;
+            gap: 15px;
+            width: 380px;
         }
 
         .menu-btn {
             background: linear-gradient(to bottom, #f0c27b, #c19b47);
             border: none;
-            padding: 18px;
-            font-size: 1.2rem;
+            padding: 16px;
+            font-size: 1.1rem;
             font-weight: bold;
             color: #1a1a1a;
             border-radius: 8px;
@@ -67,14 +68,14 @@
             transform: scale(0.98);
         }
 
-        /* REGELS / HOW TO PLAY SCHERM */
+        /* REGELS, SETTINGS & CONTACT BOXEN */
         .rules-box {
             background: #1e1e2f;
-            padding: 30px;
+            padding: 25px;
             border-radius: 12px;
             width: 650px;
             max-width: 90vw;
-            height: 80vh;
+            max-height: 85vh;
             display: flex;
             flex-direction: column;
             color: #fff;
@@ -89,23 +90,8 @@
             margin-bottom: 15px;
         }
 
-        .rules-content h3 {
-            color: #f0c27b;
-            margin-top: 15px;
-        }
-        .rules-content p {
-            font-size: 0.95rem;
-            line-height: 1.5;
-            color: #ddd;
-        }
-        .rules-content ul {
-            padding-left: 20px;
-            color: #ddd;
-        }
-        .rules-content li {
-            margin-bottom: 6px;
-            font-size: 0.95rem;
-        }
+        .rules-content h3 { color: #f0c27b; margin-top: 15px; }
+        .rules-content p, .rules-content ul { font-size: 0.95rem; line-height: 1.5; color: #ddd; }
 
         /* SPELBORD STIJLEN */
         header {
@@ -179,7 +165,6 @@
         }
         #player-hand { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; max-width: 1000px; }
         #player-hand .card-img:hover { transform: translateY(-10px) scale(1.05); }
-
         .status-bar { font-size: 12px; color: #ffeb3b; }
     </style>
 </head>
@@ -188,24 +173,100 @@
     <!-- 1. STARTMENU SCHERM -->
     <div id="main-menu" class="menu-screen">
         <h1 class="game-title">CITTY BUILDER</h1>
-        <div class="menu-buttons">
-            <button class="menu-btn" onclick="startNewGame()">NEW GAME</button>
-            <button class="menu-btn" onclick="showHowToPlay()">HOW TO PLAY</button>
-            <button class="menu-btn" onclick="alert('Settings komen binnenkort!')">SETTINGS</button>
+        
+        <!-- Hoofdmenu Knoppen -->
+        <div id="menu-main-buttons" class="menu-buttons">
+            <button class="menu-btn" id="btn-new-game" onclick="showGameModeSelect()">NEW GAME</button>
+            <button class="menu-btn" id="btn-how-to-play" onclick="showHowToPlay()">HOW TO PLAY</button>
+            <button class="menu-btn" id="btn-contact" onclick="showContact()">CONTACT</button>
+            <button class="menu-btn" id="btn-settings" onclick="showSettings()">SETTINGS</button>
+        </div>
+
+        <!-- 1A. Spelmodus Kiezen (AI vs Multiplayer) -->
+        <div id="menu-gamemode-select" class="menu-buttons" style="display: none;">
+            <p id="lbl-select-mode" style="text-align: center; color: #ffeb3b; font-weight: bold; margin: 0;">KIES SPELMODUS</p>
+            <button class="menu-btn" id="btn-mode-ai" onclick="selectMode('ai')">🤖 Tegen Computer (AI)</button>
+            <button class="menu-btn" id="btn-mode-mp" onclick="selectMode('multiplayer')">👥 Multiplayer (Lokaal / 1 vs 1)</button>
+            <button class="menu-btn btn-back" onclick="showMainMenu()" style="background: linear-gradient(to bottom, #d9534f, #c9302c); color: white;">TERUG</button>
+        </div>
+
+        <!-- 1B. Aantal Spelers Kiezen -->
+        <div id="menu-player-select" class="menu-buttons" style="display: none;">
+            <p id="lbl-select-players" style="text-align: center; color: #ffeb3b; font-weight: bold; margin: 0;">KIES HET AANTAL SPELERS</p>
+            <div id="player-count-buttons" style="display: flex; flex-direction: column; gap: 12px; width: 100%;">
+                <!-- Wordt direct ingevuld via selectMode() -->
+            </div>
+            <button class="menu-btn btn-back" onclick="showGameModeSelect()" style="background: linear-gradient(to bottom, #d9534f, #c9302c); color: white; margin-top: 5px;">TERUG</button>
         </div>
     </div>
 
     <!-- 2. HOW TO PLAY / REGELS SCHERM -->
     <div id="rules-screen" class="menu-screen" style="display: none;">
         <div class="rules-box">
+            <h2 id="rules-title" style="color: #ffeb3b; margin-top: 0;">📜 SPELREGELS</h2>
             <div class="rules-content" id="rules-container">
                 <!-- Wordt automatisch gevuld vanuit rules.js -->
             </div>
-            <button class="menu-btn" onclick="showMainMenu()" style="width: 100%;">TERUG</button>
+            <button class="menu-btn btn-back" onclick="showMainMenu()" style="width: 100%;">TERUG</button>
         </div>
     </div>
 
-    <!-- 3. HET DAADWERKELIJKE SPELBORD -->
+    <!-- 3. SETTINGS SCHERM -->
+    <div id="settings-screen" class="menu-screen" style="display: none;">
+        <div class="rules-box" style="height: auto; width: 450px;">
+            <h2 id="settings-title" style="color: #ffeb3b; margin-top: 0;">⚙️ INSTELLINGEN</h2>
+            <div style="margin: 20px 0; display: flex; flex-direction: column; gap: 10px; text-align: left;">
+                <label id="lbl-language" style="font-weight: bold; color: #f0c27b;">Kies Taal / Select Language:</label>
+                <select id="language-select" onchange="changeLanguage(this.value)" style="padding: 12px; font-size: 1rem; border-radius: 6px; background: #2a2a3d; color: white; border: 1px solid #c19b47; cursor: pointer;">
+                    <option value="nl">Nederlands 🇳🇱</option>
+                    <option value="en">English 🇬🇧</option>
+                    <option value="fr">Français 🇫🇷</option>
+                    <option value="es">Español 🇪🇸</option>
+                </select>
+            </div>
+            <button class="menu-btn btn-back" onclick="showMainMenu()" style="width: 100%; margin-top: 10px;">TERUG</button>
+        </div>
+    </div>
+
+    <!-- 4. CONTACT & BESTELLEN SCHERM (Direct naar jouw e-mail) -->
+    <div id="contact-screen" class="menu-screen" style="display: none;">
+        <div class="rules-box" style="height: auto; width: 650px;">
+            <h2 id="contact-title" style="color: #ffeb3b; margin-top: 0;">📦 CONTACT & KAARTEN BESTELLEN</h2>
+            <div class="rules-content" style="max-height: 55vh;">
+                <p id="contact-intro" style="font-size: 1.05rem; line-height: 1.6; color: #fff;">
+                    Wil jij de fysieke editie van het kaartspel <b>CITTY BUILDER</b> bestellen om thuis met vrienden te spelen? Dat kan!
+                </p>
+                <p style="font-size: 1rem; line-height: 1.5; color: #f0c27b; font-weight: bold;">
+                    ✉️ Direct bestellen per e-mail:<br>
+                    <span style="color: #ddd; font-weight: normal;">
+                    Stuur een e-mail naar ons onderstaande e-mailadres of gebruik de knop hieronder om direct een e-mail op te stellen. Vermeld in je e-mail je <b>naam</b>, <b>verzendadres</b> en het <b>aantal exemplaren</b> dat je wilt ontvangen!
+                    </span>
+                </p>
+
+                <!-- Jouw e-mailadres -->
+                <div style="background: #2a2a3d; padding: 15px; border-radius: 8px; border: 1px solid #c19b47; text-align: center; margin: 15px 0;">
+                    <span style="font-size: 0.9rem; color: #aaa; display: block; margin-bottom: 5px;">ONS E-MAILADRES:</span>
+                    <a href="mailto:angelsanddemonstcg@gmail.com" style="font-size: 1.3rem; color: #ffeb3b; font-weight: bold; text-decoration: none;">angelsanddemonstcg@gmail.com</a>
+                </div>
+
+                <!-- Formulier dat direct jouw e-mail opent -->
+                <form action="mailto:angelsanddemonstcg@gmail.com" method="POST" enctype="text/plain" style="display: flex; flex-direction: column; gap: 12px; margin-top: 10px;">
+                    <div style="display: flex; flex-direction: column; text-align: left;">
+                        <label style="font-size: 0.9rem; color: #f0c27b; margin-bottom: 4px;">Jouw Naam:</label>
+                        <input type="text" name="Naam" required placeholder="Bijv. Jan Jansen" style="padding: 10px; border-radius: 6px; background: #2a2a3d; color: white; border: 1px solid #c19b47;">
+                    </div>
+                    <div style="display: flex; flex-direction: column; text-align: left;">
+                        <label style="font-size: 0.9rem; color: #f0c27b; margin-bottom: 4px;">Aantal exemplaren & Verzendadres:</label>
+                        <textarea name="Bestelling_en_Adres" rows="3" required placeholder="Ik wil graag 1 exemplaar bestellen. Mijn adres is..." style="padding: 10px; border-radius: 6px; background: #2a2a3d; color: white; border: 1px solid #c19b47; resize: none;"></textarea>
+                    </div>
+                    <button type="submit" class="menu-btn" style="padding: 12px; font-size: 1rem; margin-top: 5px;">OPEN E-MAIL & VERSTUUR BESTELLING</button>
+                </form>
+            </div>
+            <button class="menu-btn btn-back" onclick="showMainMenu()" style="width: 100%; margin-top: 15px;">TERUG</button>
+        </div>
+    </div>
+
+    <!-- 5. HET SPELBORD -->
     <div id="game-container" style="display: none; flex-direction: column; height: 100vh;">
         <header>
             <h1>🏙️ CITTY BUILDER</h1>
@@ -213,10 +274,8 @@
         </header>
 
         <div id="game-board">
-            <!-- AI SPELERS Bovenin -->
             <div id="ai-container"></div>
 
-            <!-- Midden: Trekstapel & Aflegstapel -->
             <div class="center-area">
                 <div class="pile-container">
                     <span class="pile-label">Trekstapel (<span id="deck-count">0</span>)</span>
@@ -228,7 +287,6 @@
                 </div>
             </div>
 
-            <!-- Jouw Veld -->
             <div class="field-container" style="background: rgba(0, 255, 0, 0.08);">
                 <p class="zone-title">👤 Jouw Front Line (Monsters - Max 3)</p>
                 <div class="card-slots" id="front-line"></div>
@@ -236,7 +294,6 @@
                 <div class="card-slots" id="back-line"></div>
             </div>
 
-            <!-- Jouw Hand -->
             <div id="player-hand-container">
                 <div class="status-bar" id="status-text">Klik op een gebouw of monster in je hand om te spelen!</div>
                 <div id="player-hand"></div>
@@ -244,28 +301,44 @@
         </div>
     </div>
 
-    <!-- Scripts -->
-    <script src="cards.js"></script>
+<script src="cards.js"></script>
     <script src="rules.js"></script>
     <script src="game.js"></script>
     
     <script>
-        // Laad automatisch alle regels vanuit rules.js
-        window.addEventListener('DOMContentLoaded', () => {
-            const container = document.getElementById('rules-container');
-            if (container && typeof GAME_RULES_HTML !== 'undefined') {
-                container.innerHTML = GAME_RULES_HTML;
-            }
-        });
+        let currentLang = 'nl';
+        let chosenGameMode = 'ai';
 
-        function startNewGame() {
-            document.getElementById('main-menu').style.display = 'none';
+        function showGameModeSelect() {
+            document.getElementById('main-menu').style.display = 'flex';
+            document.getElementById('menu-main-buttons').style.display = 'none';
             document.getElementById('rules-screen').style.display = 'none';
-            document.getElementById('game-container').style.display = 'flex';
-            if (typeof initGame === 'function') {
-                initGame(3);
+            document.getElementById('settings-screen').style.display = 'none';
+            document.getElementById('contact-screen').style.display = 'none';
+            document.getElementById('menu-player-select').style.display = 'none';
+            document.getElementById('menu-gamemode-select').style.display = 'flex';
+        }
+
+        function selectMode(mode) {
+            chosenGameMode = mode;
+            document.getElementById('menu-gamemode-select').style.display = 'none';
+            document.getElementById('menu-player-select').style.display = 'flex';
+
+            const container = document.getElementById('player-count-buttons');
+            container.innerHTML = '';
+
+            if (mode === 'ai') {
+                container.innerHTML = `
+                    <button class="menu-btn" onclick="startNewGame(2)">2 Spelers (1 Mens vs 1 AI)</button>
+                    <button class="menu-btn" onclick="startNewGame(3)">3 Spelers (1 Mens vs 2 AI's)</button>
+                    <button class="menu-btn" onclick="startNewGame(4)">4 Spelers (1 Mens vs 3 AI's)</button>
+                `;
             } else {
-                console.error("game.js of initGame is niet correct geladen!");
+                container.innerHTML = `
+                    <button class="menu-btn" onclick="startNewGame(2)">2 Spelers (Speler 1 vs Speler 2)</button>
+                    <button class="menu-btn" onclick="startNewGame(3)">3 Spelers (Lokaal 3p)</button>
+                    <button class="menu-btn" onclick="startNewGame(4)">4 Spelers (Lokaal 4p)</button>
+                `;
             }
         }
 
@@ -274,10 +347,77 @@
             document.getElementById('rules-screen').style.display = 'flex';
         }
 
+        function showSettings() {
+            document.getElementById('main-menu').style.display = 'none';
+            document.getElementById('settings-screen').style.display = 'flex';
+        }
+
+        function showContact() {
+            document.getElementById('main-menu').style.display = 'none';
+            document.getElementById('contact-screen').style.display = 'flex';
+        }
+
         function showMainMenu() {
             document.getElementById('rules-screen').style.display = 'none';
+            document.getElementById('settings-screen').style.display = 'none';
+            document.getElementById('contact-screen').style.display = 'none';
+            document.getElementById('menu-gamemode-select').style.display = 'none';
+            document.getElementById('menu-player-select').style.display = 'none';
+            document.getElementById('menu-main-buttons').style.display = 'flex';
             document.getElementById('main-menu').style.display = 'flex';
         }
+
+        function startNewGame(numPlayers) {
+            document.getElementById('main-menu').style.display = 'none';
+            document.getElementById('rules-screen').style.display = 'none';
+            document.getElementById('settings-screen').style.display = 'none';
+            document.getElementById('contact-screen').style.display = 'none';
+            document.getElementById('game-container').style.display = 'flex';
+            
+            if (typeof initGame === 'function') {
+                initGame(numPlayers, chosenGameMode);
+            } else {
+                console.error("game.js is niet geladen!");
+            }
+        }
+
+        // De waterdichte taalschakelaar (zonder dat er een fout kan optreden)
+        function changeLanguage(lang) {
+            currentLang = lang;
+            if (typeof TRANSLATIONS === 'undefined' || !TRANSLATIONS[lang]) return;
+            const t = TRANSLATIONS[lang];
+
+            const setTxt = (id, text) => {
+                const el = document.getElementById(id);
+                if (el && text) el.innerText = text;
+            };
+
+            setTxt('btn-new-game', t.newGame);
+            setTxt('btn-how-to-play', t.howToPlay);
+            setTxt('btn-contact', t.contact);
+            setTxt('btn-settings', t.settings);
+            
+            setTxt('lbl-select-mode', t.selectMode);
+            setTxt('lbl-select-players', t.selectPlayers);
+            setTxt('btn-mode-ai', t.modeAi);
+            setTxt('btn-mode-mp', t.modeMp);
+            
+            setTxt('settings-title', t.settingsTitle);
+            setTxt('lbl-language', t.chooseLang);
+            setTxt('rules-title', t.rulesTitle);
+            setTxt('contact-title', t.contactTitle);
+            
+            document.querySelectorAll('.btn-back').forEach(btn => btn.innerText = t.back);
+
+            const rulesContainer = document.getElementById('rules-container');
+            if (rulesContainer && t.rulesHtml) {
+                rulesContainer.innerHTML = t.rulesHtml;
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            changeLanguage('nl');
+        });
     </script>
 </body>
 </html>

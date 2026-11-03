@@ -73,3 +73,75 @@
     line-height: 1.4;
     color: #ddd;
 }
+/* ==========================================
+       MOBIELE & RESPONSIEVE OPTIMALISATIES
+       ========================================== */
+    @media (max-width: 768px) {
+        body {
+            height: 100vh;
+            overflow: auto; /* Zorgt dat je kunt scrollen op kleinere schermen */
+        }
+
+        .game-title {
+            font-size: 2.2rem;
+            margin-bottom: 20px;
+        }
+
+        .menu-buttons {
+            width: 90vw;
+            max-width: 350px;
+        }
+
+        .rules-box {
+            width: 95vw;
+            max-height: 90vh;
+            padding: 15px;
+        }
+
+        header h1 {
+            font-size: 16px;
+        }
+
+        #turn-indicator {
+            font-size: 11px;
+            padding: 3px 8px;
+        }
+
+        /* Maak de speelvelden iets compacter voor telefoons */
+        .card-slots {
+            gap: 4px;
+            min-height: 85px;
+        }
+
+        .slot {
+            width: 55px;
+            height: 75px;
+            font-size: 8px;
+        }
+
+        .card-img {
+            width: 55px;
+            height: 75px;
+        }
+
+        .ai-card-img {
+            width: 40px;
+            height: 55px;
+        }
+
+        /* Maak de handkaarten horizontaal scrollbaar als het er te veel worden op mobiel */
+        #player-hand {
+            display: flex;
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            justify-content: flex-start;
+            padding-bottom: 5px;
+            max-width: 100vw;
+        }
+
+        #player-hand .card-img {
+            flex: 0 0 auto;
+            width: 65px;
+            height: 90px;
+        }
+    }

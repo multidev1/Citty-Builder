@@ -130,7 +130,17 @@
             text-transform: uppercase; margin: 0;
         }
 
-        .card-slots { display: flex; gap: 6px; min-height: 95px; align-items: center; justify-content: center; }
+        /* ALTIJD EÉN RUSTIGE HORIZONTALE RIJ VOOR SLOTS */
+        .card-slots { 
+            display: flex; 
+            flex-direction: row;
+            flex-wrap: nowrap; 
+            gap: 6px; 
+            min-height: 95px; 
+            align-items: center; 
+            justify-content: center; 
+            width: 100%;
+        }
 
         .slot {
             width: 70px; height: 95px;
@@ -138,6 +148,7 @@
             display: flex; align-items: center; justify-content: center;
             background: rgba(0, 0, 0, 0.2); font-size: 9px;
             color: rgba(255, 255, 255, 0.5); text-align: center; padding: 2px;
+            flex-shrink: 0;
         }
 
         .center-area { display: flex; gap: 25px; align-items: center; margin: 4px 0; }
@@ -168,13 +179,12 @@
         .status-bar { font-size: 12px; color: #ffeb3b; }
 
         /* ==========================================
-           ULTRA-RESPONSIEVE MOBIELE OPTIMALISATIES
+           CORRECTE MOBIELE SCHALINGSREGELS
            ========================================== */
         @media (max-width: 768px) {
             body {
                 height: 100vh;
                 overflow-x: hidden;
-                overflow-y: auto;
             }
 
             .game-title {
@@ -208,41 +218,45 @@
 
             #game-board {
                 padding: 4px;
-                gap: 6px;
+                gap: 4px;
             }
 
-            .field-container {
-                padding: 4px;
-                width: 100%;
-            }
-
-            /* Laat de Back Line (7 gebouwen) netjes in een rij/raster passen op mobiel */
-            #back-line {
-                display: flex;
-                flex-wrap: wrap;
-                justify-content: center;
+            /* STRIKT IN 1 RIJ BLIJVEN EN MAAT AANPASSEN AAN MOBIEL */
+            .card-slots {
+                flex-wrap: nowrap !important;
                 gap: 3px;
-                max-width: 100%;
-                min-height: auto;
+                min-height: 65px;
             }
 
+            /* Alle 7 slots schalen mee naar de breedte van het scherm */
             .slot {
-                width: 44px;
-                height: 62px;
-                font-size: 6px;
+                width: calc((100vw - 40px) / 7);
+                max-width: 50px;
+                height: 65px;
+                font-size: 7px;
                 padding: 1px;
                 border-radius: 4px;
             }
 
             .card-img {
-                width: 44px;
-                height: 62px;
+                width: 100%;
+                height: 65px;
                 border-radius: 4px;
             }
 
             .ai-card-img {
-                width: 32px;
-                height: 45px;
+                width: 100%;
+                height: 48px;
+            }
+
+            /* Front line mag iets ruimer blijven voor 3 monsters */
+            #front-line .slot {
+                width: 60px;
+                height: 75px;
+            }
+            #front-line .card-img {
+                width: 60px;
+                height: 75px;
             }
 
             .center-area {
@@ -251,17 +265,17 @@
             }
 
             .pile {
-                width: 50px;
-                height: 70px;
+                width: 48px;
+                height: 65px;
             }
 
             .pile .card-img {
-                width: 50px;
-                height: 70px;
+                width: 48px;
+                height: 65px;
             }
 
             #player-hand-container {
-                padding: 6px 4px;
+                padding: 4px;
             }
 
             #player-hand {
@@ -276,8 +290,8 @@
 
             #player-hand .card-img {
                 flex: 0 0 auto;
-                width: 55px;
-                height: 78px;
+                width: 52px;
+                height: 72px;
                 margin: 0 2px;
             }
 

@@ -25,18 +25,16 @@
             left: 0;
             width: 100vw;
             height: 100vh;
-            /* Vervang 'cover.png' eventueel door jouw eigen afbeelding */
             background: url('cover.png') no-repeat center center;
             background-size: cover;
-            z-index: 9999; /* Staat absoluut boven alles */
+            z-index: 9999;
             display: flex;
             flex-direction: column;
-            justify-content: flex-end; /* Duwt de balk naar de onderkant */
+            justify-content: flex-end;
             align-items: center;
             cursor: pointer;
         }
 
-        /* Half-transparante zwarte balk onderaan */
         .press-to-start-bar {
             width: 100%;
             background: rgba(0, 0, 0, 0.65);
@@ -48,7 +46,6 @@
             box-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
         }
 
-        /* Flikkerende / knipperende gele tekst */
         .blink-text {
             color: #ffeb3b;
             font-size: 1.8rem;
@@ -231,129 +228,35 @@
         .status-bar { font-size: 12px; color: #ffeb3b; }
 
         @media (max-width: 768px) {
-            body {
-                height: 100vh;
-                overflow-x: hidden;
-            }
-
-            .game-title {
-                font-size: 2rem;
-                margin-bottom: 15px;
-            }
-
-            .menu-buttons {
-                width: 92vw;
-                max-width: 340px;
-            }
-
-            .rules-box {
-                width: 95vw;
-                max-height: 88vh;
-                padding: 12px;
-            }
-
-            header {
-                padding: 6px 10px;
-            }
-
-            header h1 {
-                font-size: 14px;
-            }
-
-            #turn-indicator {
-                font-size: 11px;
-                padding: 2px 8px;
-            }
-
-            #game-board {
-                padding: 4px;
-                gap: 4px;
-            }
-
-            .card-slots {
-                flex-wrap: nowrap !important;
-                gap: 3px;
-                min-height: 65px;
-            }
-
-            .slot {
-                width: calc((100vw - 40px) / 7);
-                max-width: 50px;
-                height: 65px;
-                font-size: 7px;
-                padding: 1px;
-                border-radius: 4px;
-            }
-
-            .card-img {
-                width: 100%;
-                height: 65px;
-                border-radius: 4px;
-            }
-
-            .ai-card-img {
-                width: 100%;
-                height: 48px;
-            }
-
-            #front-line .slot {
-                width: 60px;
-                height: 75px;
-            }
-            #front-line .card-img {
-                width: 60px;
-                height: 75px;
-            }
-
-            .center-area {
-                gap: 15px;
-                margin: 2px 0;
-            }
-
-            .pile {
-                width: 48px;
-                height: 65px;
-            }
-
-            .pile .card-img {
-                width: 48px;
-                height: 65px;
-            }
-
-            #player-hand-container {
-                padding: 4px;
-            }
-
-            #player-hand {
-                display: flex;
-                flex-wrap: nowrap;
-                overflow-x: auto;
-                justify-content: flex-start;
-                padding: 4px 0;
-                width: 100%;
-                -webkit-overflow-scrolling: touch;
-            }
-
-            #player-hand .card-img {
-                flex: 0 0 auto;
-                width: 52px;
-                height: 72px;
-                margin: 0 2px;
-            }
-
-            .status-bar {
-                font-size: 11px;
-                text-align: center;
-            }
-            
-            .blink-text {
-                font-size: 1.3rem;
-                letter-spacing: 2px;
-            }
+            body { height: 100vh; overflow-x: hidden; }
+            .game-title { font-size: 2rem; margin-bottom: 15px; }
+            .menu-buttons { width: 92vw; max-width: 340px; }
+            .rules-box { width: 95vw; max-height: 88vh; padding: 12px; }
+            header { padding: 6px 10px; }
+            header h1 { font-size: 14px; }
+            #turn-indicator { font-size: 11px; padding: 2px 8px; }
+            #game-board { padding: 4px; gap: 4px; }
+            .card-slots { flex-wrap: nowrap !important; gap: 3px; min-height: 65px; }
+            .slot { width: calc((100vw - 40px) / 7); max-width: 50px; height: 65px; font-size: 7px; padding: 1px; border-radius: 4px; }
+            .card-img { width: 100%; height: 65px; border-radius: 4px; }
+            .ai-card-img { width: 100%; height: 48px; }
+            #front-line .slot { width: 60px; height: 75px; }
+            #front-line .card-img { width: 60px; height: 75px; }
+            .center-area { gap: 15px; margin: 2px 0; }
+            .pile { width: 48px; height: 65px; }
+            .pile .card-img { width: 48px; height: 65px; }
+            #player-hand-container { padding: 4px; }
+            #player-hand { display: flex; flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; padding: 4px 0; width: 100%; -webkit-overflow-scrolling: touch; }
+            #player-hand .card-img { flex: 0 0 auto; width: 52px; height: 72px; margin: 0 2px; }
+            .status-bar { font-size: 11px; text-align: center; }
+            .blink-text { font-size: 1.3rem; letter-spacing: 2px; }
         }
     </style>
 </head>
 <body>
+
+    <!-- INTRO MUZIEK (start direct bij laden van de pagina) -->
+    <audio id="intro-audio" src="intro.wav" autoplay loop preload="auto"></audio>
 
     <!-- 0. INTRO SPLASH SCREEN -->
     <div id="intro-screen" onclick="startFromIntro()">
@@ -366,7 +269,6 @@
     <div id="main-menu" class="menu-screen" style="display: none;">
         <h1 class="game-title">CITTY BUILDER</h1>
         
-        <!-- Hoofdmenu Knoppen -->
         <div id="menu-main-buttons" class="menu-buttons">
             <button class="menu-btn" id="btn-new-game" onclick="showGameModeSelect()">NEW GAME</button>
             <button class="menu-btn" id="btn-how-to-play" onclick="showHowToPlay()">HOW TO PLAY</button>
@@ -374,7 +276,6 @@
             <button class="menu-btn" id="btn-settings" onclick="showSettings()">SETTINGS</button>
         </div>
 
-        <!-- 1A. Spelmodus Kiezen (AI vs Multiplayer) -->
         <div id="menu-gamemode-select" class="menu-buttons" style="display: none;">
             <p id="lbl-select-mode" style="text-align: center; color: #ffeb3b; font-weight: bold; margin: 0;">KIES SPELMODUS</p>
             <button class="menu-btn" id="btn-mode-ai" onclick="selectMode('ai')">🤖 Tegen Computer (AI)</button>
@@ -382,12 +283,9 @@
             <button class="menu-btn btn-back" onclick="showMainMenu()" style="background: linear-gradient(to bottom, #d9534f, #c9302c); color: white;">TERUG</button>
         </div>
 
-        <!-- 1B. Aantal Spelers Kiezen -->
         <div id="menu-player-select" class="menu-buttons" style="display: none;">
             <p id="lbl-select-players" style="text-align: center; color: #ffeb3b; font-weight: bold; margin: 0;">KIES HET AANTAL SPELERS</p>
-            <div id="player-count-buttons" style="display: flex; flex-direction: column; gap: 12px; width: 100%;">
-                <!-- Wordt direct ingevuld via selectMode() -->
-            </div>
+            <div id="player-count-buttons" style="display: flex; flex-direction: column; gap: 12px; width: 100%;"></div>
             <button class="menu-btn btn-back" onclick="showGameModeSelect()" style="background: linear-gradient(to bottom, #d9534f, #c9302c); color: white; margin-top: 5px;">TERUG</button>
         </div>
     </div>
@@ -396,9 +294,7 @@
     <div id="rules-screen" class="menu-screen" style="display: none;">
         <div class="rules-box">
             <h2 id="rules-title" style="color: #ffeb3b; margin-top: 0;">📜 SPELREGELS</h2>
-            <div class="rules-content" id="rules-container">
-                <!-- Wordt automatisch gevuld vanuit rules.js -->
-            </div>
+            <div class="rules-content" id="rules-container"></div>
             <button class="menu-btn btn-back" onclick="showMainMenu()" style="width: 100%;">TERUG</button>
         </div>
     </div>
@@ -420,7 +316,7 @@
         </div>
     </div>
 
-    <!-- 4. CONTACT & BESTELLEN SCHERM (Direct naar jouw e-mail) -->
+    <!-- 4. CONTACT & BESTELLEN SCHERM -->
     <div id="contact-screen" class="menu-screen" style="display: none;">
         <div class="rules-box" style="height: auto; width: 650px;">
             <h2 id="contact-title" style="color: #ffeb3b; margin-top: 0;">📦 CONTACT & KAARTEN BESTELLEN</h2>
@@ -435,13 +331,11 @@
                     </span>
                 </p>
 
-                <!-- Jouw e-mailadres -->
                 <div style="background: #2a2a3d; padding: 15px; border-radius: 8px; border: 1px solid #c19b47; text-align: center; margin: 15px 0;">
                     <span style="font-size: 0.9rem; color: #aaa; display: block; margin-bottom: 5px;">ONS E-MAILADRES:</span>
                     <a href="mailto:angelsanddemonstcg@gmail.com" style="font-size: 1.3rem; color: #ffeb3b; font-weight: bold; text-decoration: none;">angelsanddemonstcg@gmail.com</a>
                 </div>
 
-                <!-- Formulier dat direct jouw e-mail opent -->
                 <form action="mailto:angelsanddemonstcg@gmail.com" method="POST" enctype="text/plain" style="display: flex; flex-direction: column; gap: 12px; margin-top: 10px;">
                     <div style="display: flex; flex-direction: column; text-align: left;">
                         <label style="font-size: 0.9rem; color: #f0c27b; margin-bottom: 4px;">Jouw Naam:</label>
@@ -501,8 +395,22 @@
         let currentLang = 'nl';
         let chosenGameMode = 'ai';
 
-        // Functie om het intro-scherm weg te klikken en het hoofdmenu te tonen
+        window.addEventListener('DOMContentLoaded', () => {
+            const audio = document.getElementById('intro-audio');
+            if (audio) {
+                audio.play().catch(error => {
+                    console.log("Autoplay geblokkeerd, start bij eerste klik:", error);
+                });
+            }
+            changeLanguage('nl');
+        });
+
         function startFromIntro() {
+            const audio = document.getElementById('intro-audio');
+            if (audio && audio.paused) {
+                audio.play().catch(e => console.log(e));
+            }
+
             const introScreen = document.getElementById('intro-screen');
             if (introScreen) {
                 introScreen.style.transition = "opacity 0.5s ease, transform 0.5s ease";
@@ -510,7 +418,6 @@
                 introScreen.style.transform = "scale(1.05)";
                 setTimeout(() => {
                     introScreen.style.display = 'none';
-                    // Laat direct het hoofdmenu zien zodra de intro weg is
                     showMainMenu();
                 }, 500);
             }
@@ -620,10 +527,6 @@
                 rulesContainer.innerHTML = t.rulesHtml;
             }
         }
-
-        window.addEventListener('DOMContentLoaded', () => {
-            changeLanguage('nl');
-        });
     </script>
 </body>
 </html>

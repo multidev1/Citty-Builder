@@ -16,6 +16,59 @@
             height: 100vh; overflow: hidden;
         }
 
+        /* ==========================================
+           INTRO SPLASH SCREEN STIJLEN
+           ========================================== */
+        #intro-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            /* Vervang 'cover.png' eventueel door jouw eigen afbeelding */
+            background: url('cover.png') no-repeat center center;
+            background-size: cover;
+            z-index: 9999; /* Staat absoluut boven alles */
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end; /* Duwt de balk naar de onderkant */
+            align-items: center;
+            cursor: pointer;
+        }
+
+        /* Half-transparante zwarte balk onderaan */
+        .press-to-start-bar {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.65);
+            padding: 22px 0;
+            text-align: center;
+            border-top: 2px solid #c19b47;
+            border-bottom: 2px solid #c19b47;
+            margin-bottom: 50px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
+        }
+
+        /* Flikkerende / knipperende gele tekst */
+        .blink-text {
+            color: #ffeb3b;
+            font-size: 1.8rem;
+            font-weight: bold;
+            letter-spacing: 4px;
+            text-shadow: 0 0 12px rgba(255, 235, 59, 0.8);
+            animation: blinking 1.2s infinite ease-in-out;
+        }
+
+        @keyframes blinking {
+            0%, 100% { 
+                opacity: 1; 
+                transform: scale(1);
+            }
+            50% { 
+                opacity: 0.25; 
+                transform: scale(0.98);
+            }
+        }
+
         /* STARTMENU STIJLEN */
         .menu-screen {
             position: fixed;
@@ -130,7 +183,6 @@
             text-transform: uppercase; margin: 0;
         }
 
-        /* ALTIJD EÉN RUSTIGE HORIZONTALE RIJ VOOR SLOTS */
         .card-slots { 
             display: flex; 
             flex-direction: row;
@@ -178,9 +230,6 @@
         #player-hand .card-img:hover { transform: translateY(-10px) scale(1.05); }
         .status-bar { font-size: 12px; color: #ffeb3b; }
 
-        /* ==========================================
-           CORRECTE MOBIELE SCHALINGSREGELS
-           ========================================== */
         @media (max-width: 768px) {
             body {
                 height: 100vh;
@@ -221,14 +270,12 @@
                 gap: 4px;
             }
 
-            /* STRIKT IN 1 RIJ BLIJVEN EN MAAT AANPASSEN AAN MOBIEL */
             .card-slots {
                 flex-wrap: nowrap !important;
                 gap: 3px;
                 min-height: 65px;
             }
 
-            /* Alle 7 slots schalen mee naar de breedte van het scherm */
             .slot {
                 width: calc((100vw - 40px) / 7);
                 max-width: 50px;
@@ -249,7 +296,6 @@
                 height: 48px;
             }
 
-            /* Front line mag iets ruimer blijven voor 3 monsters */
             #front-line .slot {
                 width: 60px;
                 height: 75px;
@@ -299,13 +345,25 @@
                 font-size: 11px;
                 text-align: center;
             }
+            
+            .blink-text {
+                font-size: 1.3rem;
+                letter-spacing: 2px;
+            }
         }
     </style>
 </head>
 <body>
 
+    <!-- 0. INTRO SPLASH SCREEN -->
+    <div id="intro-screen" onclick="startFromIntro()">
+        <div class="press-to-start-bar">
+            <span class="blink-text">PRESS TO START</span>
+        </div>
+    </div>
+
     <!-- 1. STARTMENU SCHERM -->
-    <div id="main-menu" class="menu-screen">
+    <div id="main-menu" class="menu-screen" style="display: none;">
         <h1 class="game-title">CITTY BUILDER</h1>
         
         <!-- Hoofdmenu Knoppen -->
@@ -442,6 +500,21 @@
     <script>
         let currentLang = 'nl';
         let chosenGameMode = 'ai';
+
+        // Functie om het intro-scherm weg te klikken en het hoofdmenu te tonen
+        function startFromIntro() {
+            const introScreen = document.getElementById('intro-screen');
+            if (introScreen) {
+                introScreen.style.transition = "opacity 0.5s ease, transform 0.5s ease";
+                introScreen.style.opacity = "0";
+                introScreen.style.transform = "scale(1.05)";
+                setTimeout(() => {
+                    introScreen.style.display = 'none';
+                    // Laat direct het hoofdmenu zien zodra de intro weg is
+                    showMainMenu();
+                }, 500);
+            }
+        }
 
         function showGameModeSelect() {
             document.getElementById('main-menu').style.display = 'flex';

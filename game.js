@@ -38,7 +38,7 @@ function getGameText() {
             drawTwoDone: "DRAW TWO! Extra kaarten getrokken.",
             handSwapDone: "HAND SWAP! Handen zijn gewisseld!",
             skipTurnDone: "slaat zijn volgende beurt over door Sabotage!",
-            winAlert: "is de absolute winnaar de CITTY BUILDER!",
+            winAlert: "is de absolute winnaar van CITTY BUILDER!",
             winWarning: "heeft 7 unieke gebouwen! Verdedig ze tot de volgende beurt",
             aiPlacedBuilding: "heeft een gebouw geplaatst",
             aiSummonedMonster: "heeft een monster opgeroepen",
@@ -223,12 +223,11 @@ function renderBoard() {
         }
     }
 
-    // --- 1. ALLE TEGENSTANDERS (AI 1, AI 2, etc.) STAAN ALTIJD VAST BOVENIN ---
+    // --- 1. ALLE TEGENSTANDERS (AI 1, AI 2, etc.) STAAN BOVENIN ---
     const aiContainer = document.getElementById('ai-container');
     if (aiContainer) {
         aiContainer.innerHTML = '';
         
-        // Loop door alle spelers behalve de menselijke speler (Speler 0)
         for (let i = 1; i < players.length; i++) {
             const opponent = players[i];
             const opponentIndex = i;
@@ -330,7 +329,7 @@ function renderBoard() {
         }
     }
 
-    // --- 2. DE MENSELIJKE SPELER (SPELER 0 / "JIJ") STAAT ALTIJD VAST ONDERAAN ---
+    // --- 2. DE MENSELIJKE SPELER (SPELER 0 / "JIJ") STAAT ONDERAAN ---
     const humanPlayer = players[0];
 
     const handEl = document.getElementById('player-hand');
@@ -348,7 +347,7 @@ function renderBoard() {
         });
     }
 
-    // Jouw eigen Front Line (Monsters) - Altijd onderaan
+    // Jouw eigen Front Line (Monsters)
     const frontEl = document.getElementById('front-line');
     if (frontEl) {
         frontEl.innerHTML = '';
@@ -380,7 +379,7 @@ function renderBoard() {
         }
     }
 
-    // Jouw eigen Back Line (Gebouwen) - Altijd onderaan
+    // Jouw eigen Back Line (Gebouwen)
     const backEl = document.getElementById('back-line');
     if (backEl) {
         backEl.innerHTML = '';
@@ -426,7 +425,7 @@ function handleTargetClick(targetType, targetAiIndex, targetIndex) {
     const txt = getGameText();
 
     const targetPlayer = players[targetAiIndex];
-    const activePlayer = players[0]; // Jij bent altijd de actieve speler bij aanvallen
+    const activePlayer = players[0];
     let attackerCard = activePlayer.frontLine[selectedAttacker.slotIndex];
 
     if (targetType === 'monster') {
@@ -477,7 +476,7 @@ function handleTargetClick(targetType, targetAiIndex, targetIndex) {
 function playCardFromHand(index) {
     if (currentPlayerIndex !== 0) return;
     const txt = getGameText();
-    const activePlayer = players[0]; // Jij bent de speler
+    const activePlayer = players[0];
 
     selectedAttacker = null;
     const card = activePlayer.hand[index];
@@ -617,6 +616,7 @@ function playAITurn() {
         return;
     }
 
+    // 1. Aanvallen met een monster (indien aanwezig)
     let aiHasMonsters = ai.frontLine.some(m => m !== null);
     if (aiHasMonsters) {
         let opponents = players.filter(p => p.id !== ai.id);
@@ -651,6 +651,7 @@ function playAITurn() {
         }
     }
 
+    // 2. Gebouw plaatsen
     if (!actionDone) {
         for (let i = 0; i < ai.hand.length; i++) {
             let card = ai.hand[i];
@@ -667,6 +668,7 @@ function playAITurn() {
         }
     }
 
+    // 3. Monster oproepen
     if (!actionDone) {
         for (let i = 0; i < ai.hand.length; i++) {
             let card = ai.hand[i];
@@ -686,19 +688,53 @@ function playAITurn() {
         }
     }
 
+    // 4. VOLLEDIG GEFIXTE AI SABOTAGEKAART LOGICA (Werkt op jou én andere AI's)
     if (!actionDone) {
         let sabotageIndex = ai.hand.findIndex(c => c.type !== 'building' && c.type !== 'monster');
         if (sabotageIndex !== -1) {
             let sCard = ai.hand.splice(sabotageIndex, 1)[0];
             discardPile.push(sCard);
+
+            // Kies willekeurig een tegenstander (jou of een andere AI)
             let opponents = players.filter(p => p.id !== ai.id);
-            let randomOpponent = opponents[Math.floor(Math.random() * opponents.length)];
-            randomOpponent.skipNextTurn = true;
-            showStatus(`🤖 ${ai.name} ${txt.aiSabotage} ${randomOpponent.name}!`, true);
+            let targetOpponent = opponents[Math.floor(Math.random() * opponents.length)];
+            let cardNameLower = sCard.name.toLowerCase();
+
+            // Voer het effect daadwerkelijk uit op de gekozen tegenstander
+            if (cardNameLower.includes('demolish') || cardNameLower.includes('slopen')) {
+                let bIndex = targetOpponent.backLine.findIndex(b => b !== null);
+                if (bIndex !== -1 && targetOpponent.backLine[bIndex]) {
+                    let destroyedBuilding = targetOpponent.backLine[bIndex];
+                    targetOpponent.backLine[bIndex] = null;
+                    discardPile.push(destroyedBuilding);
+                    showStatus(`💥 ${ai.name} speelt DEMOLISH! Gebouw (${destroyedBuilding.name}) van ${targetOpponent.name} is vernietigd!`, true);
+                } else {
+                    showStatus(`🤖 ${ai.name} speelt ${sCard.name}, maar ${targetOpponent.name} heeft geen gebouwen om te slopen.`, true);
+                }
+            } 
+            else if (cardNameLower.includes('draw') || cardNameLower.includes('trek')) {
+                for (let d = 0; d < 2; d++) {
+                    if (deck.length > 0) targetOpponent.hand.push(deck.pop());
+                }
+                showStatus(`🃏 ${ai.name} geeft ${targetOpponent.name} 2 extra kaarten via ${sCard.name}!`);
+            } 
+            else if (cardNameLower.includes('swap') || cardNameLower.includes('wissel')) {
+                let tempHand = ai.hand;
+                ai.hand = targetOpponent.hand;
+                targetOpponent.hand = tempHand;
+                showStatus(`🔄 ${ai.name} heeft de handkaarten gewisseld met ${targetOpponent.name} via ${sCard.name}!`, true);
+            } 
+            else {
+                // Standaard sabotage: Beurt overslaan voor de gekozen tegenstander
+                targetOpponent.skipNextTurn = true;
+                showStatus(`⚡ ${ai.name} speelt ${sCard.name}! ${targetOpponent.name} moet de volgende beurt overslaan!`, true);
+            }
+
             actionDone = true;
         }
     }
 
+    // 5. Kaart afleggen als er niets anders mogelijk is
     if (!actionDone && ai.hand.length > 0) {
         discardPile.push(ai.hand.splice(0, 1)[0]);
         showStatus(`🤖 ${ai.name} ${txt.aiDiscarded}.`);

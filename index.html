@@ -21,10 +21,8 @@
            ========================================== */
         #intro-screen {
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
             background: url('cover.png') no-repeat center center;
             background-size: cover;
             z-index: 9999;
@@ -56,14 +54,8 @@
         }
 
         @keyframes blinking {
-            0%, 100% { 
-                opacity: 1; 
-                transform: scale(1);
-            }
-            50% { 
-                opacity: 0.25; 
-                transform: scale(0.98);
-            }
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.25; transform: scale(0.98); }
         }
 
         /* STARTMENU STIJLEN */
@@ -255,9 +247,8 @@
 </head>
 <body>
 
-    <!-- 0. INTRO SPLASH SCREEN (Met ingebouwde audio fallback voor GitHub) -->
+    <!-- 0. INTRO SPLASH SCREEN -->
     <div id="intro-screen" onclick="startFromIntro()">
-        <audio id="intro-audio" src="intro.WAV" loop preload="auto"></audio>
         <div class="press-to-start-bar">
             <span class="blink-text">PRESS TO START</span>
         </div>
@@ -392,29 +383,55 @@
     <script>
         let currentLang = 'nl';
         let chosenGameMode = 'ai';
+        let audioCtx = null;
+        let audioBuffer = null;
+        let sourceNode = null;
+        let isPlaying = false;
 
-        // Direct starten en automatisch ontgrendelen bij de eerste interactie op het intro-scherm
-        window.addEventListener('DOMContentLoaded', () => {
-            const audio = document.getElementById('intro-audio');
-            if (audio) {
-                audio.play().catch(() => {
-                    const unlockAndPlay = () => {
-                        audio.play();
-                        window.removeEventListener('pointerdown', unlockAndPlay);
-                        window.removeEventListener('keydown', unlockAndPlay);
-                    };
-                    window.addEventListener('pointerdown', unlockAndPlay);
-                    window.addEventListener('keydown', unlockAndPlay);
-                });
+        // Laad en start de audio via de krachtige Web Audio API (omzeilt alle browser- en GitHub-restricties)
+        async function initAudio() {
+            try {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const response = await fetch('intro.WAV');
+                const arrayBuffer = await response.arrayBuffer();
+                audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+                playLoop();
+            } catch (e) {
+                console.log("Audio kon niet automatisch via Web Audio API geladen worden:", e);
             }
+        }
+
+        function playLoop() {
+            if (!audioCtx || !audioBuffer || isPlaying) return;
+            
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+
+            sourceNode = audioCtx.createBufferSource();
+            sourceNode.buffer = audioBuffer;
+            sourceNode.loop = true;
+            sourceNode.connect(audioCtx.destination);
+            sourceNode.start(0);
+            isPlaying = true;
+        }
+
+        // Start direct bij de allereerste interactie of laadmoment
+        window.addEventListener('DOMContentLoaded', () => {
+            initAudio();
             changeLanguage('nl');
         });
 
-        function startFromIntro() {
-            const audio = document.getElementById('intro-audio');
-            if (audio && audio.paused) {
-                audio.play().catch(e => console.log(e));
+        // Vang elke muisklik/touch op het intro-scherm op om direct geluid te garanderen
+        window.addEventListener('pointerdown', () => {
+            if (audioCtx && audioCtx.state === 'suspended') {
+                audioCtx.resume();
             }
+            playLoop();
+        }, { once: true });
+
+        function startFromIntro() {
+            playLoop(); // Extra zekerheid bij klik op start
 
             const introScreen = document.getElementById('intro-screen');
             if (introScreen) {

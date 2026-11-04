@@ -142,6 +142,7 @@ function getGameText() {
     return texts[lang] || texts['nl'];
 }
 
+// VOLLEDIG GEFIXTE INITGAME MET PROFESSIONELE DEAL-ANIMATIE VOOR ALLE SPELERS
 function initGame(numPlayers = 3, mode = 'ai') {
     if (typeof DECK_DATA === 'undefined') {
         console.error("cards.js ontbreekt of DECK_DATA is niet gevonden!");
@@ -158,7 +159,6 @@ function initGame(numPlayers = 3, mode = 'ai') {
     players = [];
     for (let i = 0; i < numPlayers; i++) {
         let isComputer = (mode === 'ai') ? (i !== 0) : false;
-        
         players.push({
             id: i,
             name: (mode === 'ai') ? (i === 0 ? "Jij" : `AI Speler ${i}`) : `Speler ${i + 1}`,
@@ -170,13 +170,79 @@ function initGame(numPlayers = 3, mode = 'ai') {
         });
     }
 
-    for (let p of players) {
-        for (let i = 0; i < 5; i++) {
-            if (deck.length > 0) p.hand.push(deck.pop());
-        }
-    }
-
+    // 1. Maak het speelbord direct zichtbaar
+    document.getElementById('game-container').style.display = 'flex';
     renderBoard();
+
+    // 2. PROFESSIONELE ANIMATIE: Schudden en om de beurt uitdelen aan iedereen
+    const drawPileEl = document.getElementById('draw-pile');
+    const humanHandEl = document.getElementById('player-hand');
+
+    if (drawPileEl && humanHandEl) {
+        drawPileEl.classList.add('shuffling');
+
+        setTimeout(() => {
+            drawPileEl.classList.remove('shuffling');
+
+            let totalRounds = 5; // 5 kaarten per speler
+            let animationStep = 0;
+            let backImg = typeof CARD_BACK_IMAGE !== 'undefined' ? CARD_BACK_IMAGE : CARD_BACK_IMG;
+
+            for (let round = 0; round < totalRounds; round++) {
+                for (let pIndex = 0; pIndex < players.length; pIndex++) {
+                    
+                    setTimeout(() => {
+                        if (deck.length === 0) return;
+                        let drawnCard = deck.pop();
+                        players[pIndex].hand.push(drawnCard);
+
+                        if (drawPileEl) {
+                            const flyingCard = document.createElement('img');
+                            flyingCard.src = (pIndex === 0) ? drawnCard.image : backImg;
+                            flyingCard.className = 'card-img dealing-card';
+
+                            const pileRect = drawPileEl.getBoundingClientRect();
+                            let targetRect = humanHandEl.getBoundingClientRect();
+
+                            if (pIndex > 0) {
+                                const aiBoxes = document.querySelectorAll('.field-container');
+                                if (aiBoxes[pIndex - 1]) {
+                                    targetRect = aiBoxes[pIndex - 1].getBoundingClientRect();
+                                }
+                            }
+
+                            flyingCard.style.setProperty('--start-x', `${pileRect.left - targetRect.left}px`);
+                            flyingCard.style.setProperty('--start-y', `${pileRect.top - targetRect.top}px`);
+
+                            document.body.appendChild(flyingCard);
+                            flyingCard.style.position = 'fixed';
+                            flyingCard.style.left = `${pileRect.left}px`;
+                            flyingCard.style.top = `${pileRect.top}px`;
+                            flyingCard.style.width = `${pileRect.width || 60}px`;
+                            flyingCard.style.height = `${pileRect.height || 90}px`;
+                            flyingCard.style.zIndex = '9999';
+
+                            setTimeout(() => {
+                                flyingCard.style.transition = 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+                                flyingCard.style.left = `${targetRect.left + (targetRect.width / 2)}px`;
+                                flyingCard.style.top = `${targetRect.top + (targetRect.height / 2)}px`;
+                                flyingCard.style.transform = 'scale(0.3) opacity(0)';
+                            }, 20);
+
+                            setTimeout(() => {
+                                flyingCard.remove();
+                                renderBoard();
+                            }, 420);
+                        }
+
+                    }, animationStep * 130);
+
+                    animationStep++;
+                }
+            }
+
+        }, 1100);
+    }
 }
 
 function shuffle(array) {
@@ -223,7 +289,7 @@ function renderBoard() {
         }
     }
 
-    // --- 1. ALLE TEGENSTANDERS (AI 1, AI 2, etc.) STAAN BOVENIN ---
+    // --- 1. ALLE TEGENSTANDERS (AI) ---
     const aiContainer = document.getElementById('ai-container');
     if (aiContainer) {
         aiContainer.innerHTML = '';
@@ -254,7 +320,7 @@ function renderBoard() {
             oppField.innerHTML = `
                 <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 5px;">
                     <p class="zone-title" style="margin: 0; ${pendingSabotageCard ? 'color: #ff5722; font-weight: bold;' : ''}">🛡️ ${opponent.name} (${txt.building}: ${buildingCount}/7) ${pendingSabotageCard ? '👉 [KLIK HIER ALS DOELWIT]' : ''}</p>
-                    <div style="display: flex; align-items: center; background: rgba(0,0,0,0.2); padding: 2px 6px; border-radius: 6px;" title="Handkaarten van ${opponent.name}">
+                    <div style="display: flex; align-items: center; background: rgba(0,0,0,0.2); padding: 2px 6px; border-radius: 6px;">
                         <span style="font-size: 11px; margin-right: 5px; color: #fff; font-weight: bold;">Hand (${opponent.hand.length}):</span>
                         <div style="display: flex;">${oppHandHtml}</div>
                     </div>
@@ -265,7 +331,6 @@ function renderBoard() {
             `;
             aiContainer.appendChild(oppField);
 
-            // Tegenstander Back Line (Gebouwen)
             const oppBackSlots = document.getElementById(`opp-${opponentIndex}-back`);
             for (let b = 0; b < 7; b++) {
                 const slot = document.createElement('div');
@@ -297,7 +362,6 @@ function renderBoard() {
                 oppBackSlots.appendChild(slot);
             }
 
-            // Tegenstander Front Line (Monsters)
             const oppFrontSlots = document.getElementById(`opp-${opponentIndex}-front`);
             for (let f = 0; f < 3; f++) {
                 const slot = document.createElement('div');
@@ -329,7 +393,7 @@ function renderBoard() {
         }
     }
 
-    // --- 2. DE MENSELIJKE SPELER (SPELER 0 / "JIJ") STAAT ONDERAAN ---
+    // --- 2. DE MENSELIJKE SPELER ---
     const humanPlayer = players[0];
 
     const handEl = document.getElementById('player-hand');
@@ -347,7 +411,6 @@ function renderBoard() {
         });
     }
 
-    // Jouw eigen Front Line (Monsters)
     const frontEl = document.getElementById('front-line');
     if (frontEl) {
         frontEl.innerHTML = '';
@@ -379,7 +442,6 @@ function renderBoard() {
         }
     }
 
-    // Jouw eigen Back Line (Gebouwen)
     const backEl = document.getElementById('back-line');
     if (backEl) {
         backEl.innerHTML = '';
@@ -616,7 +678,6 @@ function playAITurn() {
         return;
     }
 
-    // 1. Aanvallen met een monster (indien aanwezig)
     let aiHasMonsters = ai.frontLine.some(m => m !== null);
     if (aiHasMonsters) {
         let opponents = players.filter(p => p.id !== ai.id);
@@ -651,7 +712,6 @@ function playAITurn() {
         }
     }
 
-    // 2. Gebouw plaatsen
     if (!actionDone) {
         for (let i = 0; i < ai.hand.length; i++) {
             let card = ai.hand[i];
@@ -668,7 +728,6 @@ function playAITurn() {
         }
     }
 
-    // 3. Monster oproepen
     if (!actionDone) {
         for (let i = 0; i < ai.hand.length; i++) {
             let card = ai.hand[i];
@@ -688,19 +747,16 @@ function playAITurn() {
         }
     }
 
-    // 4. VOLLEDIG GEFIXTE AI SABOTAGEKAART LOGICA (Werkt op jou én andere AI's)
     if (!actionDone) {
         let sabotageIndex = ai.hand.findIndex(c => c.type !== 'building' && c.type !== 'monster');
         if (sabotageIndex !== -1) {
             let sCard = ai.hand.splice(sabotageIndex, 1)[0];
             discardPile.push(sCard);
 
-            // Kies willekeurig een tegenstander (jou of een andere AI)
             let opponents = players.filter(p => p.id !== ai.id);
             let targetOpponent = opponents[Math.floor(Math.random() * opponents.length)];
             let cardNameLower = sCard.name.toLowerCase();
 
-            // Voer het effect daadwerkelijk uit op de gekozen tegenstander
             if (cardNameLower.includes('demolish') || cardNameLower.includes('slopen')) {
                 let bIndex = targetOpponent.backLine.findIndex(b => b !== null);
                 if (bIndex !== -1 && targetOpponent.backLine[bIndex]) {
@@ -725,7 +781,6 @@ function playAITurn() {
                 showStatus(`🔄 ${ai.name} heeft de handkaarten gewisseld met ${targetOpponent.name} via ${sCard.name}!`, true);
             } 
             else {
-                // Standaard sabotage: Beurt overslaan voor de gekozen tegenstander
                 targetOpponent.skipNextTurn = true;
                 showStatus(`⚡ ${ai.name} speelt ${sCard.name}! ${targetOpponent.name} moet de volgende beurt overslaan!`, true);
             }
@@ -734,7 +789,6 @@ function playAITurn() {
         }
     }
 
-    // 5. Kaart afleggen als er niets anders mogelijk is
     if (!actionDone && ai.hand.length > 0) {
         discardPile.push(ai.hand.splice(0, 1)[0]);
         showStatus(`🤖 ${ai.name} ${txt.aiDiscarded}.`);
@@ -746,12 +800,13 @@ function playAITurn() {
 function checkWinCondition() {
     const txt = getGameText();
     for (let p of players) {
-        let uniqueBuildings = p.backLine.filter(c => c !== null).length;
-        if (uniqueBuildings >= 7) {
+        const uniqueBuildings = new Set(p.backLine.filter(c => c !== null).map(c => c.name));
+        if (uniqueBuildings.size >= 7) {
             if (pendingWinPlayer === null) {
                 pendingWinPlayer = p.id;
-                showStatus(`⚠️ ${p.name} ${txt.winWarning}`, true);
+                showStatus(`🏆 ${p.name} ${txt.winWarning}!`, true);
             }
+            return;
         }
     }
 }

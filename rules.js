@@ -41,7 +41,7 @@ const TRANSLATIONS = {
             <h3>🚀 SPELVERLOOP</h3>
             <p><b>Setup:</b></p>
             <ul>
-                <li>Schud alle 112 kaarten en leg ze als centrale trekstapel neer.</li>
+                <li>Schud alle 111 kaarten en leg ze als centrale trekstapel neer.</li>
                 <li>Elke speler krijgt 5 startkaarten.</li>
                 <li>De jongste speler begint, daarna met de klok mee.</li>
             </ul>
@@ -92,8 +92,8 @@ const TRANSLATIONS = {
             <h3>🎯 OBJECTIVE OF THE GAME</h3>
             <p>Be the first player to have <b>7 different buildings</b> face-up in your backline and successfully defend them for a full round (until the start of your next turn).</p>
 
-            <h3>🎴 THE DECK (112 Cards)</h3>
-            <p>The game is played with a single central draw pile consisting of 112 cards, divided into three categories:</p>
+            <h3>🎴 THE DECK (111 Cards)</h3>
+            <p>The game is played with a single central draw pile consisting of 111 cards, divided into three categories:</p>
             <ul>
                 <li><b>Buildings:</b> Unique locations. Bank, Hotel, Cathedral, Casino, House, Shopping Mall, International Airport.</li>
                 <li><b>Monsters:</b> Defenders featuring a Level (LV) and hit capacity (HP = Level: LV1=1 hit, LV2=2 hits, LV3=3 hits, LV4=4 hits).</li>

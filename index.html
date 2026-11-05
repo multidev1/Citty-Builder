@@ -341,6 +341,24 @@
         </div>
     </div>
 
+<!-- LOKALE MULTIPLAYER: AFGESCHERMD WISSELSCHERM -->
+<div id="local-handoff-screen" class="menu-screen" style="display: none; z-index: 10000;">
+    <div class="rules-box" style="text-align: center; width: 450px;">
+        <h2 id="handoff-player-name" style="color: #ffeb3b;">
+            Geef het toestel door
+        </h2>
+
+        <p style="font-size: 1.1rem; line-height: 1.5;">
+            De vorige speler heeft zijn beurt beëindigd.
+            Geef het toestel aan de volgende speler.
+        </p>
+
+        <button class="menu-btn" onclick="continueLocalTurn()" style="width: 100%;">
+            START BEURT
+        </button>
+    </div>
+</div>
+
     <!-- 5. HET SPELBORD -->
     <div id="game-container" style="display: none; flex-direction: column; height: 100vh;">
         <header>
@@ -469,14 +487,14 @@
                     <button class="menu-btn" onclick="startNewGame(3)">3 Spelers (1 Mens vs 2 AI's)</button>
                     <button class="menu-btn" onclick="startNewGame(4)">4 Spelers (1 Mens vs 3 AI's)</button>
                 `;
-            } else {
-                container.innerHTML = `
-                    <button class="menu-btn" onclick="startNewGame(2)">2 Spelers (Speler 1 vs Speler 2)</button>
-                    <button class="menu-btn" onclick="startNewGame(3)">3 Spelers (Lokaal 3p)</button>
-                    <button class="menu-btn" onclick="startNewGame(4)">4 Spelers (Lokaal 4p)</button>
-                `;
-            }
-        }
+} else {
+    container.innerHTML = `
+        <button class="menu-btn" onclick="startNewGame(2)">
+            2 Spelers (Speler 1 vs Speler 2)
+        </button>
+    `;
+}
+}
 
         function showHowToPlay() {
             document.getElementById('main-menu').style.display = 'none';

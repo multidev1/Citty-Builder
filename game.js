@@ -1,18 +1,36 @@
+
+"use strict";
+
+// ==========================================
+// CITTY BUILDER - GAME ENGINE
+// AI MODE + LOCAL MULTIPLAYER
+// ==========================================
+
 let deck = [];
 let discardPile = [];
 let players = [];
 let currentPlayerIndex = 0;
 let pendingWinPlayer = null;
 
+let turnDirection = 1;
+
 let selectedAttacker = null;
 let pendingSabotageCard = null;
 
-// De juiste achterkant van de kaart
+let currentGameMode = 'ai';
+let waitingForLocalHandoff = false;
+
+let aiTurnTimer = null;
+
 const CARD_BACK_IMG = "0000_back.png";
 
-// Dynamische vertalingen voor het spel zelf
+// ==========================================
+// VERTALINGEN
+// ==========================================
+
 function getGameText() {
     const lang = (typeof currentLang !== 'undefined') ? currentLang : 'nl';
+
     const texts = {
         nl: {
             yourTurn: "Jouw Beurt (Speel een kaart of klik op je monster om aan te vallen)",
@@ -45,6 +63,7 @@ function getGameText() {
             aiSabotage: "speelt sabotagekaart op",
             aiDiscarded: "heeft een kaart afgelegd"
         },
+
         en: {
             yourTurn: "Your Turn (Play a card or click your monster to attack)",
             aiTurn: "Turn of",
@@ -76,6 +95,7 @@ function getGameText() {
             aiSabotage: "plays sabotage card on",
             aiDiscarded: "discarded a card"
         },
+
         fr: {
             yourTurn: "Votre Tour (Jouez une carte ou cliquez sur votre monstre pour attaquer)",
             aiTurn: "Tour de",
@@ -107,6 +127,7 @@ function getGameText() {
             aiSabotage: "joue une carte de sabotage sur",
             aiDiscarded: "a défaussé une carte"
         },
+
         es: {
             yourTurn: "Tu Turno (Juega una carta o haz clic en tu monstruo para atacar)",
             aiTurn: "Turno de",
@@ -139,29 +160,132 @@ function getGameText() {
             aiDiscarded: "descartó una carta"
         }
     };
-    return texts[lang] || texts['nl'];
+
+    return texts[lang] || texts.nl;
 }
 
-// VOLLEDIG GEFIXTE INITGAME MET PROFESSIONELE DEAL-ANIMATIE VOOR ALLE SPELERS
+// ==========================================
+// HULPFUNCTIES
+// ==========================================
+
+function getCardBackImage() {
+    return typeof CARD_BACK_IMAGE !== 'undefined'
+        ? CARD_BACK_IMAGE
+        : CARD_BACK_IMG;
+}
+
+function getDisplayPlayerIndex() {
+    return currentGameMode === 'multiplayer'
+        ? currentPlayerIndex
+        : 0;
+}
+
+function isHumanTurn() {
+    return players[currentPlayerIndex] &&
+        !players[currentPlayerIndex].isAI &&
+        !waitingForLocalHandoff;
+}
+
+function shuffle(array) {
+    let currentIndex = array.length;
+    let randomIndex;
+
+    while (currentIndex !== 0) {
+        randomIndex = Math.floor(Math.random() * currentIndex);
+        currentIndex--;
+
+        [array[currentIndex], array[randomIndex]] =
+            [array[randomIndex], array[currentIndex]];
+    }
+
+    return array;
+}
+
+// ==========================================
+// AI TIMER
+// Pauzeert AI-acties zolang een sabotagekaart
+// geselecteerd is en er nog een doelwit gekozen
+// moet worden.
+// ==========================================
+
+function scheduleAIAction(callback, delay = 1500) {
+    if (aiTurnTimer !== null) {
+        clearTimeout(aiTurnTimer);
+    }
+
+    aiTurnTimer = setTimeout(() => {
+        aiTurnTimer = null;
+
+        if (pendingSabotageCard) {
+            scheduleAIAction(callback, 250);
+            return;
+        }
+
+        callback();
+
+    }, delay);
+}
+
+function clearAIActionTimer() {
+    if (aiTurnTimer !== null) {
+        clearTimeout(aiTurnTimer);
+        aiTurnTimer = null;
+    }
+}
+
+// ==========================================
+// NIEUW SPEL
+// ==========================================
+
 function initGame(numPlayers = 3, mode = 'ai') {
     if (typeof DECK_DATA === 'undefined') {
         console.error("cards.js ontbreekt of DECK_DATA is niet gevonden!");
         return;
     }
 
+    if (mode !== 'ai' && mode !== 'multiplayer') {
+        console.error("Ongeldige spelmodus:", mode);
+        return;
+    }
+
+    if (mode === 'multiplayer') {
+        numPlayers = 2;
+    }
+
+    numPlayers = Math.max(2, Math.min(4, numPlayers));
+
+    clearAIActionTimer();
+
+    currentGameMode = mode;
+    waitingForLocalHandoff = false;
+
+    const handoffScreen =
+        document.getElementById('local-handoff-screen');
+
+    if (handoffScreen) {
+        handoffScreen.style.display = 'none';
+    }
+
     deck = shuffle([...DECK_DATA]);
     discardPile = [];
+
     currentPlayerIndex = 0;
     pendingWinPlayer = null;
+    turnDirection = 1;
     selectedAttacker = null;
     pendingSabotageCard = null;
 
     players = [];
+
     for (let i = 0; i < numPlayers; i++) {
-        let isComputer = (mode === 'ai') ? (i !== 0) : false;
+        const isComputer = mode === 'ai' && i !== 0;
+
         players.push({
             id: i,
-            name: (mode === 'ai') ? (i === 0 ? "Jij" : `AI Speler ${i}`) : `Speler ${i + 1}`,
+            name: mode === 'ai'
+                ? (i === 0 ? "Jij" : `AI Speler ${i}`)
+                : `Speler ${i + 1}`,
+
             isAI: isComputer,
             hand: [],
             frontLine: [null, null, null],
@@ -170,400 +294,785 @@ function initGame(numPlayers = 3, mode = 'ai') {
         });
     }
 
-    // 1. Maak het speelbord direct zichtbaar
-    document.getElementById('game-container').style.display = 'flex';
+    const gameContainer =
+        document.getElementById('game-container');
+
+    if (gameContainer) {
+        gameContainer.style.display = 'flex';
+    }
+
     renderBoard();
 
-    // 2. PROFESSIONELE ANIMATIE: Schudden en om de beurt uitdelen aan iedereen
-    const drawPileEl = document.getElementById('draw-pile');
-    const humanHandEl = document.getElementById('player-hand');
+    // ======================================
+    // KAARTEN UITDELEN MET ANIMATIE
+    // ======================================
 
-    if (drawPileEl && humanHandEl) {
-        drawPileEl.classList.add('shuffling');
+    const drawPileEl =
+        document.getElementById('draw-pile');
 
-        setTimeout(() => {
-            drawPileEl.classList.remove('shuffling');
+    const humanHandEl =
+        document.getElementById('player-hand');
 
-            let totalRounds = 5; // 5 kaarten per speler
-            let animationStep = 0;
-            let backImg = typeof CARD_BACK_IMAGE !== 'undefined' ? CARD_BACK_IMAGE : CARD_BACK_IMG;
-
-            for (let round = 0; round < totalRounds; round++) {
-                for (let pIndex = 0; pIndex < players.length; pIndex++) {
-                    
-                    setTimeout(() => {
-                        if (deck.length === 0) return;
-                        let drawnCard = deck.pop();
-                        players[pIndex].hand.push(drawnCard);
-
-                        if (drawPileEl) {
-                            const flyingCard = document.createElement('img');
-                            flyingCard.src = (pIndex === 0) ? drawnCard.image : backImg;
-                            flyingCard.className = 'card-img dealing-card';
-
-                            const pileRect = drawPileEl.getBoundingClientRect();
-                            let targetRect = humanHandEl.getBoundingClientRect();
-
-                            if (pIndex > 0) {
-                                const aiBoxes = document.querySelectorAll('.field-container');
-                                if (aiBoxes[pIndex - 1]) {
-                                    targetRect = aiBoxes[pIndex - 1].getBoundingClientRect();
-                                }
-                            }
-
-                            flyingCard.style.setProperty('--start-x', `${pileRect.left - targetRect.left}px`);
-                            flyingCard.style.setProperty('--start-y', `${pileRect.top - targetRect.top}px`);
-
-                            document.body.appendChild(flyingCard);
-                            flyingCard.style.position = 'fixed';
-                            flyingCard.style.left = `${pileRect.left}px`;
-                            flyingCard.style.top = `${pileRect.top}px`;
-                            flyingCard.style.width = `${pileRect.width || 60}px`;
-                            flyingCard.style.height = `${pileRect.height || 90}px`;
-                            flyingCard.style.zIndex = '9999';
-
-                            setTimeout(() => {
-                                flyingCard.style.transition = 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
-                                flyingCard.style.left = `${targetRect.left + (targetRect.width / 2)}px`;
-                                flyingCard.style.top = `${targetRect.top + (targetRect.height / 2)}px`;
-                                flyingCard.style.transform = 'scale(0.3) opacity(0)';
-                            }, 20);
-
-                            setTimeout(() => {
-                                flyingCard.remove();
-                                renderBoard();
-                            }, 420);
-                        }
-
-                    }, animationStep * 130);
-
-                    animationStep++;
+    if (!drawPileEl || !humanHandEl) {
+        for (let round = 0; round < 5; round++) {
+            for (let pIndex = 0; pIndex < players.length; pIndex++) {
+                if (deck.length > 0) {
+                    players[pIndex].hand.push(deck.pop());
                 }
             }
+        }
 
-        }, 1100);
+        renderBoard();
+        return;
     }
+
+    drawPileEl.classList.add('shuffling');
+
+    setTimeout(() => {
+        drawPileEl.classList.remove('shuffling');
+
+        const totalRounds = 5;
+        let animationStep = 0;
+        const backImg = getCardBackImage();
+
+        for (let round = 0; round < totalRounds; round++) {
+            for (let pIndex = 0; pIndex < players.length; pIndex++) {
+
+                setTimeout(() => {
+                    if (deck.length === 0) return;
+
+                    const drawnCard = deck.pop();
+                    players[pIndex].hand.push(drawnCard);
+
+                    const flyingCard = document.createElement('img');
+
+                    flyingCard.src = pIndex === 0
+                        ? drawnCard.image
+                        : backImg;
+
+                    flyingCard.className = 'card-img dealing-card';
+
+                    const pileRect =
+                        drawPileEl.getBoundingClientRect();
+
+                    let targetRect =
+                        humanHandEl.getBoundingClientRect();
+
+                    if (pIndex > 0) {
+                        const opponentBoxes =
+                            document.querySelectorAll('.field-container');
+
+                        if (opponentBoxes[pIndex - 1]) {
+                            targetRect =
+                                opponentBoxes[pIndex - 1].getBoundingClientRect();
+                        }
+                    }
+
+                    flyingCard.style.position = 'fixed';
+                    flyingCard.style.left = `${pileRect.left}px`;
+                    flyingCard.style.top = `${pileRect.top}px`;
+                    flyingCard.style.width = `${pileRect.width || 60}px`;
+                    flyingCard.style.height = `${pileRect.height || 90}px`;
+                    flyingCard.style.zIndex = '9999';
+
+                    document.body.appendChild(flyingCard);
+
+                    setTimeout(() => {
+                        flyingCard.style.transition =
+                            'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+
+                        flyingCard.style.left =
+                            `${targetRect.left + targetRect.width / 2}px`;
+
+                        flyingCard.style.top =
+                            `${targetRect.top + targetRect.height / 2}px`;
+
+                        flyingCard.style.transform = 'scale(0.3)';
+                        flyingCard.style.opacity = '0';
+                    }, 20);
+
+                    setTimeout(() => {
+                        flyingCard.remove();
+                        renderBoard();
+                    }, 420);
+
+                }, animationStep * 130);
+
+                animationStep++;
+            }
+        }
+
+    }, 1100);
 }
 
-function shuffle(array) {
-    let currentIndex = array.length, randomIndex;
-    while (currentIndex !== 0) {
-        randomIndex = Math.floor(Math.random() * currentIndex);
-        currentIndex--;
-        [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
-    }
-    return array;
-}
+// ==========================================
+// STATUSBERICHT
+// ==========================================
 
 function showStatus(message, isAlert = false) {
-    const indicator = document.getElementById('turn-indicator');
-    if (indicator) {
-        indicator.innerText = message;
-        indicator.style.background = isAlert ? "#ff3333" : (selectedAttacker || pendingSabotageCard ? "#ff5722" : "#ffeb3b");
-        indicator.style.color = isAlert || selectedAttacker || pendingSabotageCard ? "#fff" : "#000";
-    }
+    const indicator =
+        document.getElementById('turn-indicator');
+
+    if (!indicator) return;
+
+    indicator.innerText = message;
+
+    indicator.style.background = isAlert
+        ? "#ff3333"
+        : (selectedAttacker || pendingSabotageCard
+            ? "#ff5722"
+            : "#ffeb3b");
+
+    indicator.style.color =
+        isAlert || selectedAttacker || pendingSabotageCard
+            ? "#fff"
+            : "#000";
 }
 
+// ==========================================
+// SPEELBORD WEERGEVEN
+// ==========================================
+
 function renderBoard() {
+    if (!players.length) return;
+
     const txt = getGameText();
+
     const activePlayer = players[currentPlayerIndex];
-    
-    showStatus(activePlayer.isAI ? `${txt.aiTurn} ${activePlayer.name}...` : `${activePlayer.name}: ${txt.yourTurn}`);
+    const displayPlayerIndex = getDisplayPlayerIndex();
+    const displayPlayer = players[displayPlayerIndex];
 
-    document.getElementById('deck-count').innerText = deck.length;
-    document.getElementById('discard-count').innerText = discardPile.length;
+    if (!activePlayer || !displayPlayer) return;
 
-    const drawPileEl = document.getElementById('draw-pile');
-    if (drawPileEl) {
-        let backImg = typeof CARD_BACK_IMAGE !== 'undefined' ? CARD_BACK_IMAGE : CARD_BACK_IMG;
-        drawPileEl.innerHTML = deck.length > 0 ? `<img src="${backImg}" class="card-img" alt="Trekstapel">` : `<span>${txt.deckEmpty}</span>`;
+    if (waitingForLocalHandoff) {
+        showStatus("Geef het toestel door aan de volgende speler.");
+    } else if (pendingSabotageCard) {
+        showStatus(
+            `⚡ ${pendingSabotageCard.card.name} - Kies een tegenstander.`,
+            true
+        );
+    } else {
+        showStatus(
+            activePlayer.isAI
+                ? `${txt.aiTurn} ${activePlayer.name}...`
+                : `${activePlayer.name}: ${txt.yourTurn}`
+        );
     }
 
-    const discardPileEl = document.getElementById('discard-pile');
+    const deckCount =
+        document.getElementById('deck-count');
+
+    const discardCount =
+        document.getElementById('discard-count');
+
+    if (deckCount) deckCount.innerText = deck.length;
+    if (discardCount) discardCount.innerText = discardPile.length;
+
+    // ======================================
+    // TREKSTAPEL
+    // ======================================
+
+    const drawPileEl =
+        document.getElementById('draw-pile');
+
+    if (drawPileEl) {
+        const backImg = getCardBackImage();
+
+        drawPileEl.innerHTML = deck.length > 0
+            ? `<img src="${backImg}" class="card-img" alt="Trekstapel">`
+            : `<span>${txt.deckEmpty}</span>`;
+    }
+
+    // ======================================
+    // AFLEGSTAPEL
+    // ======================================
+
+    const discardPileEl =
+        document.getElementById('discard-pile');
+
     if (discardPileEl) {
         if (discardPile.length > 0) {
-            const topCard = discardPile[discardPile.length - 1];
-            discardPileEl.innerHTML = `<img src="${topCard.image}" class="card-img" alt="${topCard.name}">`;
+            const topCard =
+                discardPile[discardPile.length - 1];
+
+            discardPileEl.innerHTML =
+                `<img src="${topCard.image}" class="card-img" alt="${topCard.name}">`;
         } else {
-            discardPileEl.innerHTML = `<span>${txt.deckEmpty}</span>`;
+            discardPileEl.innerHTML =
+                `<span>${txt.deckEmpty}</span>`;
         }
     }
 
-    // --- 1. ALLE TEGENSTANDERS (AI) ---
-    const aiContainer = document.getElementById('ai-container');
+    // ======================================
+    // TEGENSTANDERS WEERGEVEN
+    // ======================================
+
+    const aiContainer =
+        document.getElementById('ai-container');
+
     if (aiContainer) {
         aiContainer.innerHTML = '';
-        
-        for (let i = 1; i < players.length; i++) {
-            const opponent = players[i];
-            const opponentIndex = i;
-            
-            const oppField = document.createElement('div');
+
+        players.forEach((opponent, opponentIndex) => {
+            if (opponentIndex === displayPlayerIndex) return;
+
+            const oppField =
+                document.createElement('div');
+
             oppField.className = 'field-container';
-            oppField.style.background = pendingSabotageCard ? 'rgba(255, 87, 34, 0.2)' : 'rgba(255, 0, 0, 0.08)';
-            
-            oppField.style.cursor = pendingSabotageCard ? 'pointer' : 'default';
+
+            const canTarget =
+                (isHumanTurn() || pendingSabotageCard !== null) &&
+                (selectedAttacker !== null ||
+                    pendingSabotageCard !== null);
+
+            oppField.style.background = pendingSabotageCard
+                ? 'rgba(255, 87, 34, 0.2)'
+                : 'rgba(255, 0, 0, 0.08)';
+
+            oppField.style.cursor =
+                canTarget ? 'pointer' : 'default';
+
             oppField.onclick = () => {
-                if (pendingSabotageCard && currentPlayerIndex === 0) {
+                if (pendingSabotageCard) {
                     executeSabotageOnTarget(opponentIndex);
+                    return;
                 }
+
+                if (!isHumanTurn()) return;
             };
 
-            let buildingCount = opponent.backLine.filter(c => c !== null).length;
-            let backImg = typeof CARD_BACK_IMAGE !== 'undefined' ? CARD_BACK_IMAGE : CARD_BACK_IMG;
-            
+            const buildingCount =
+                opponent.backLine.filter(c => c !== null).length;
+
+            const backImg = getCardBackImage();
+
             let oppHandHtml = '';
+
             for (let h = 0; h < opponent.hand.length; h++) {
-                oppHandHtml += `<img src="${backImg}" class="ai-hand-card-img" style="width: 30px; height: 45px; margin-right: 3px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.3);">`;
+                oppHandHtml += `
+                    <img
+                        src="${backImg}"
+                        class="ai-hand-card-img"
+                        style="
+                            width:30px;
+                            height:45px;
+                            margin-right:3px;
+                            border-radius:4px;
+                            box-shadow:0 2px 4px rgba(0,0,0,0.3);
+                        "
+                    >
+                `;
             }
 
             oppField.innerHTML = `
-                <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 5px;">
-                    <p class="zone-title" style="margin: 0; ${pendingSabotageCard ? 'color: #ff5722; font-weight: bold;' : ''}">🛡️ ${opponent.name} (${txt.building}: ${buildingCount}/7) ${pendingSabotageCard ? '👉 [KLIK HIER ALS DOELWIT]' : ''}</p>
-                    <div style="display: flex; align-items: center; background: rgba(0,0,0,0.2); padding: 2px 6px; border-radius: 6px;">
-                        <span style="font-size: 11px; margin-right: 5px; color: #fff; font-weight: bold;">Hand (${opponent.hand.length}):</span>
-                        <div style="display: flex;">${oppHandHtml}</div>
+                <div style="
+                    display:flex;
+                    justify-content:space-between;
+                    align-items:center;
+                    width:100%;
+                    margin-bottom:5px;
+                ">
+                    <p class="zone-title" style="margin:0;">
+                        🛡️ ${opponent.name}
+                        (${txt.building}: ${buildingCount}/7)
+                    </p>
+
+                    <div style="
+                        display:flex;
+                        align-items:center;
+                        background:rgba(0,0,0,0.2);
+                        padding:2px 6px;
+                        border-radius:6px;
+                    ">
+                        <span style="
+                            font-size:11px;
+                            margin-right:5px;
+                            color:#fff;
+                            font-weight:bold;
+                        ">
+                            Hand (${opponent.hand.length}):
+                        </span>
+
+                        <div style="display:flex;">
+                            ${oppHandHtml}
+                        </div>
                     </div>
                 </div>
+
                 <div class="card-slots" id="opp-${opponentIndex}-back"></div>
-                <p class="zone-title" style="margin-top: 4px;">🛡️ Front Line (${txt.monster})</p>
+
+                <p class="zone-title" style="margin-top:4px;">
+                    🛡️ Front Line (${txt.monster})
+                </p>
+
                 <div class="card-slots" id="opp-${opponentIndex}-front"></div>
             `;
+
             aiContainer.appendChild(oppField);
 
-            const oppBackSlots = document.getElementById(`opp-${opponentIndex}-back`);
-            for (let b = 0; b < 7; b++) {
-                const slot = document.createElement('div');
-                slot.className = 'slot';
-                
-                if ((selectedAttacker || pendingSabotageCard) && opponent.backLine[b] && currentPlayerIndex === 0) {
-                    slot.style.border = "3px dashed #ff3333";
-                    slot.style.cursor = "pointer";
-                }
+            // ==================================
+            // GEBOUWEN TEGENSTANDER
+            // ==================================
 
-                if (opponent.backLine[b]) {
-                    const img = document.createElement('img');
-                    img.src = opponent.backLine[b].image;
+            const oppBackSlots =
+                document.getElementById(`opp-${opponentIndex}-back`);
+
+            for (let b = 0; b < 7; b++) {
+                const slot =
+                    document.createElement('div');
+
+                slot.className = 'slot';
+
+                const building = opponent.backLine[b];
+
+                if (building) {
+                    const img =
+                        document.createElement('img');
+
+                    img.src = building.image;
                     img.className = 'ai-card-img';
+
                     img.onclick = (e) => {
                         e.stopPropagation();
-                        if (currentPlayerIndex === 0) {
-                            if (pendingSabotageCard) {
-                                executeSabotageOnTarget(opponentIndex, 'building', b);
-                            } else {
-                                handleTargetClick('building', opponentIndex, b);
-                            }
+
+                        if (pendingSabotageCard) {
+                            executeSabotageOnTarget(
+                                opponentIndex,
+                                'building',
+                                b
+                            );
+                            return;
+                        }
+
+                        if (!isHumanTurn()) return;
+
+                        if (selectedAttacker) {
+                            handleTargetClick(
+                                'building',
+                                opponentIndex,
+                                b
+                            );
                         }
                     };
+
                     slot.appendChild(img);
                 } else {
                     slot.innerText = txt.building;
                 }
+
                 oppBackSlots.appendChild(slot);
             }
 
-            const oppFrontSlots = document.getElementById(`opp-${opponentIndex}-front`);
+            // ==================================
+            // MONSTERS TEGENSTANDER
+            // ==================================
+
+            const oppFrontSlots =
+                document.getElementById(`opp-${opponentIndex}-front`);
+
             for (let f = 0; f < 3; f++) {
-                const slot = document.createElement('div');
+                const slot =
+                    document.createElement('div');
+
                 slot.className = 'slot';
 
-                if ((selectedAttacker || pendingSabotageCard) && opponent.frontLine[f] && currentPlayerIndex === 0) {
-                    slot.style.border = "3px dashed #ff3333";
-                    slot.style.cursor = "pointer";
-                }
+                const monster = opponent.frontLine[f];
 
-                if (opponent.frontLine[f]) {
-                    const monster = opponent.frontLine[f];
-                    const img = document.createElement('img');
+                if (monster) {
+                    const img =
+                        document.createElement('img');
+
                     img.src = monster.image;
                     img.className = 'ai-card-img';
-                    img.title = `${monster.name} (LV ${monster.level || 1}) - ${txt.hpText}: ${monster.currentHp}/${monster.maxHp}`;
+
+                    img.title =
+                        `${monster.name} (LV ${monster.level || 1}) - ${txt.hpText}: ${monster.currentHp}/${monster.maxHp}`;
+
                     img.onclick = (e) => {
                         e.stopPropagation();
-                        if (currentPlayerIndex === 0) {
-                            handleTargetClick('monster', opponentIndex, f);
+
+                        if (!isHumanTurn()) return;
+
+                        if (selectedAttacker) {
+                            handleTargetClick(
+                                'monster',
+                                opponentIndex,
+                                f
+                            );
                         }
                     };
+
                     slot.appendChild(img);
                 } else {
                     slot.innerText = txt.monster;
                 }
+
                 oppFrontSlots.appendChild(slot);
             }
-        }
-    }
-
-    // --- 2. DE MENSELIJKE SPELER ---
-    const humanPlayer = players[0];
-
-    const handEl = document.getElementById('player-hand');
-    if (handEl) {
-        handEl.innerHTML = '';
-        humanPlayer.hand.forEach((card, index) => {
-            const img = document.createElement('img');
-            img.src = card.image;
-            img.className = 'card-img';
-            img.title = `${card.name} (${card.type})`;
-            img.onclick = () => {
-                if (currentPlayerIndex === 0) playCardFromHand(index);
-            };
-            handEl.appendChild(img);
         });
     }
 
-    const frontEl = document.getElementById('front-line');
+    // ======================================
+    // HAND VAN DE DISPLAY-SPELER
+    // ======================================
+
+    const handEl =
+        document.getElementById('player-hand');
+
+    if (handEl) {
+        handEl.innerHTML = '';
+
+        const canShowHand =
+            !waitingForLocalHandoff &&
+            !displayPlayer.isAI;
+
+        if (canShowHand) {
+            displayPlayer.hand.forEach((card, index) => {
+                const img =
+                    document.createElement('img');
+
+                img.src = card.image;
+                img.className = 'card-img';
+                img.title = `${card.name} (${card.type})`;
+
+                img.onclick = () => {
+                    const isSabotage =
+                        card.type !== 'building' &&
+                        card.type !== 'monster';
+
+                    // Gebouwen en monsters mogen uitsluitend
+                    // tijdens de eigen beurt gespeeld worden.
+                    if (!isHumanTurn() && !isSabotage) return;
+
+                    // Lokale multiplayer blijft beperkt tot
+                    // de actieve speler.
+                    if (currentGameMode === 'multiplayer' &&
+                        !isHumanTurn()) {
+                        return;
+                    }
+
+                    playCardFromHand(index);
+                };
+
+                handEl.appendChild(img);
+            });
+        }
+    }
+
+    // ======================================
+    // FRONT LINE DISPLAY-SPELER
+    // ======================================
+
+    const frontEl =
+        document.getElementById('front-line');
+
     if (frontEl) {
         frontEl.innerHTML = '';
+
         for (let i = 0; i < 3; i++) {
-            const slot = document.createElement('div');
+            const slot =
+                document.createElement('div');
+
             slot.className = 'slot';
 
-            if (selectedAttacker && selectedAttacker.slotIndex === i) {
+            if (selectedAttacker &&
+                selectedAttacker.slotIndex === i &&
+                selectedAttacker.playerIndex === displayPlayerIndex) {
+
                 slot.style.border = "3px solid #ffeb3b";
-                slot.style.background = "rgba(255, 235, 59, 0.3)";
+                slot.style.background = "rgba(255,235,59,0.3)";
                 slot.style.boxShadow = "0 0 12px #ffeb3b";
             }
 
-            if (humanPlayer.frontLine[i]) {
-                const monster = humanPlayer.frontLine[i];
-                const img = document.createElement('img');
+            const monster = displayPlayer.frontLine[i];
+
+            if (monster) {
+                const img =
+                    document.createElement('img');
+
                 img.src = monster.image;
                 img.className = 'card-img';
-                img.style.cursor = "pointer";
-                img.title = `${monster.name} (LV ${monster.level || 1}) - ${txt.hpText}: ${monster.currentHp}/${monster.maxHp}`;
+                img.style.cursor = 'pointer';
+
+                img.title =
+                    `${monster.name} (LV ${monster.level || 1}) - ${txt.hpText}: ${monster.currentHp}/${monster.maxHp}`;
+
                 img.onclick = () => {
-                    if (currentPlayerIndex === 0) toggleAttackerSelection(i);
+                    if (!isHumanTurn()) return;
+
+                    toggleAttackerSelection(i);
                 };
+
                 slot.appendChild(img);
             } else {
-                slot.innerText = `${txt.monster} ${i+1}`;
+                slot.innerText = `${txt.monster} ${i + 1}`;
             }
+
             frontEl.appendChild(slot);
         }
     }
 
-    const backEl = document.getElementById('back-line');
+    // ======================================
+    // BACK LINE DISPLAY-SPELER
+    // ======================================
+
+    const backEl =
+        document.getElementById('back-line');
+
     if (backEl) {
         backEl.innerHTML = '';
+
         for (let i = 0; i < 7; i++) {
-            const slot = document.createElement('div');
+            const slot =
+                document.createElement('div');
+
             slot.className = 'slot';
-            if (humanPlayer.backLine[i]) {
-                slot.innerHTML = `<img src="${humanPlayer.backLine[i].image}" class="card-img" title="${humanPlayer.backLine[i].name}">`;
+
+            const building = displayPlayer.backLine[i];
+
+            if (building) {
+                const img =
+                    document.createElement('img');
+
+                img.src = building.image;
+                img.className = 'card-img';
+                img.title = building.name;
+
+                slot.appendChild(img);
             } else {
-                slot.innerText = `${txt.building} ${i+1}`;
+                slot.innerText = `${txt.building} ${i + 1}`;
             }
+
             backEl.appendChild(slot);
         }
     }
 
-    const bCount = document.getElementById('player-building-count');
-    if (bCount) bCount.innerText = humanPlayer.backLine.filter(c => c !== null).length;
+    // ======================================
+    // GEBOUWENTELLER
+    // ======================================
+
+    const bCount =
+        document.getElementById('player-building-count');
+
+    if (bCount) {
+        bCount.innerText =
+            displayPlayer.backLine.filter(c => c !== null).length;
+    }
 }
 
+// ==========================================
+// AANVALLER SELECTEREN
+// ==========================================
+
 function toggleAttackerSelection(slotIndex) {
-    if (currentPlayerIndex !== 0) return;
-    const txt = getGameText();
+    if (!isHumanTurn()) return;
+
     const activePlayer = players[currentPlayerIndex];
+    const txt = getGameText();
+
     if (!activePlayer.frontLine[slotIndex]) return;
 
     pendingSabotageCard = null;
 
-    if (selectedAttacker && selectedAttacker.slotIndex === slotIndex) {
+    if (selectedAttacker &&
+        selectedAttacker.slotIndex === slotIndex &&
+        selectedAttacker.playerIndex === currentPlayerIndex) {
+
         selectedAttacker = null;
+
         showStatus(`${activePlayer.name}: ${txt.yourTurn}`);
+
     } else {
         selectedAttacker = {
             slotIndex: slotIndex,
+            playerIndex: currentPlayerIndex,
             card: activePlayer.frontLine[slotIndex]
         };
-        showStatus(`🎯 ${selectedAttacker.card.name} - ${txt.selectAttacker}`);
+
+        showStatus(
+            `🎯 ${selectedAttacker.card.name} - ${txt.selectAttacker}`
+        );
     }
+
     renderBoard();
 }
 
-function handleTargetClick(targetType, targetAiIndex, targetIndex) {
-    if (!selectedAttacker || currentPlayerIndex !== 0) return;
+// ==========================================
+// AANVAL OP DOELWIT
+// ==========================================
+
+function handleTargetClick(targetType, targetPlayerIndex, targetIndex) {
+    if (!isHumanTurn() || !selectedAttacker) return;
+
     const txt = getGameText();
 
-    const targetPlayer = players[targetAiIndex];
-    const activePlayer = players[0];
-    let attackerCard = activePlayer.frontLine[selectedAttacker.slotIndex];
+    const activePlayer = players[currentPlayerIndex];
+    const targetPlayer = players[targetPlayerIndex];
+
+    if (!activePlayer || !targetPlayer) return;
+    if (targetPlayerIndex === currentPlayerIndex) return;
+
+    if (selectedAttacker.playerIndex !== currentPlayerIndex) return;
+
+    const attackerCard =
+        activePlayer.frontLine[selectedAttacker.slotIndex];
+
+    if (!attackerCard) {
+        selectedAttacker = null;
+        renderBoard();
+        return;
+    }
 
     if (targetType === 'monster') {
-        let targetMonster = targetPlayer.frontLine[targetIndex];
+        const targetMonster =
+            targetPlayer.frontLine[targetIndex];
+
         if (!targetMonster) return;
 
-        let attackerLevel = attackerCard.level || 1;
-        let targetLevel = targetMonster.level || 1;
+        const attackerLevel = attackerCard.level || 1;
+        const targetLevel = targetMonster.level || 1;
 
         if (attackerLevel === targetLevel) {
             showStatus(`⚠️ ${txt.sameLevel}`, true);
+
             discardPile.push(attackerCard);
             discardPile.push(targetMonster);
+
             activePlayer.frontLine[selectedAttacker.slotIndex] = null;
             targetPlayer.frontLine[targetIndex] = null;
+
         } else {
             targetMonster.currentHp--;
+
             if (targetMonster.currentHp <= 0) {
                 showStatus(`🎯 ${txt.hitMonster}`, false);
+
                 discardPile.push(targetMonster);
                 targetPlayer.frontLine[targetIndex] = null;
+
             } else {
-                showStatus(`⚔️ ${txt.hitStatus} ${targetMonster.name} (${txt.hpText}: ${targetMonster.currentHp}/${targetMonster.maxHp})`, false);
+                showStatus(
+                    `⚔️ ${txt.hitStatus} ${targetMonster.name} (${txt.hpText}: ${targetMonster.currentHp}/${targetMonster.maxHp})`,
+                    false
+                );
             }
         }
-    } 
-    else if (targetType === 'building') {
-        let targetHasMonsters = targetPlayer.frontLine.some(m => m !== null);
+
+    } else if (targetType === 'building') {
+        const targetHasMonsters =
+            targetPlayer.frontLine.some(m => m !== null);
+
         if (targetHasMonsters) {
             showStatus(`🛡️ ${txt.goldenShield}`, true);
+
             selectedAttacker = null;
-            setTimeout(renderBoard, 2000);
+
+            renderBoard();
             return;
         }
 
-        let targetBuilding = targetPlayer.backLine[targetIndex];
+        const targetBuilding =
+            targetPlayer.backLine[targetIndex];
+
         if (!targetBuilding) return;
 
-        showStatus(`🏙️ ${txt.buildingDestroyed} (${targetBuilding.name})`, false);
+        showStatus(
+            `🏙️ ${txt.buildingDestroyed} (${targetBuilding.name})`,
+            false
+        );
+
         discardPile.push(targetBuilding);
         targetPlayer.backLine[targetIndex] = null;
     }
 
     selectedAttacker = null;
+
+    renderBoard();
+
     setTimeout(endTurn, 1500);
 }
 
+// ==========================================
+// KAART UIT HAND SPELEN
+// ==========================================
+
 function playCardFromHand(index) {
-    if (currentPlayerIndex !== 0) return;
+    const displayPlayerIndex = getDisplayPlayerIndex();
+    const cardOwner = players[displayPlayerIndex];
+
+    if (!cardOwner) return;
+
+    const card = cardOwner.hand[index];
+
+    if (!card) return;
+
+    const isSabotage =
+        card.type !== 'building' &&
+        card.type !== 'monster';
+
+    // Alleen sabotage mag buiten de eigen beurt.
+    if (!isHumanTurn() && !isSabotage) return;
+
+    // Lokale multiplayer blijft beperkt tot de actieve speler.
+    if (currentGameMode === 'multiplayer' && !isHumanTurn()) {
+        return;
+    }
+
+    const activePlayer = cardOwner;
     const txt = getGameText();
-    const activePlayer = players[0];
 
     selectedAttacker = null;
-    const card = activePlayer.hand[index];
+
+    // ======================================
+    // GEBOUW
+    // ======================================
 
     if (card.type === 'building') {
         pendingSabotageCard = null;
-        const alreadyHas = activePlayer.backLine.some(c => c && c.name === card.name);
+
+        const alreadyHas =
+            activePlayer.backLine.some(
+                c => c && c.name === card.name
+            );
+
         if (alreadyHas) {
-            showStatus(`${txt.alreadyHasBuilding} ${card.name}! ${txt.uniqueBuilding}`, true);
+            showStatus(
+                `${txt.alreadyHasBuilding} ${card.name}! ${txt.uniqueBuilding}`,
+                true
+            );
+
             return;
         }
 
-        const emptyIndex = activePlayer.backLine.indexOf(null);
+        const emptyIndex =
+            activePlayer.backLine.indexOf(null);
+
         if (emptyIndex !== -1) {
             activePlayer.backLine[emptyIndex] = card;
             activePlayer.hand.splice(index, 1);
+
             showStatus(`🏙️ ${card.name}`);
+
+            renderBoard();
+
             setTimeout(endTurn, 1000);
+
         } else {
             showStatus(txt.buildingZoneFull, true);
         }
-    } 
+    }
+
+    // ======================================
+    // MONSTER
+    // ======================================
+
     else if (card.type === 'monster') {
         pendingSabotageCard = null;
-        const emptyIndex = activePlayer.frontLine.indexOf(null);
+
+        const emptyIndex =
+            activePlayer.frontLine.indexOf(null);
+
         if (emptyIndex !== -1) {
             card.level = card.level || 1;
             card.maxHp = card.level;
@@ -571,156 +1080,526 @@ function playCardFromHand(index) {
 
             activePlayer.frontLine[emptyIndex] = card;
             activePlayer.hand.splice(index, 1);
-            showStatus(`👾 ${txt.monsterSummoned}: ${card.name} (LV ${card.level})`);
+
+            showStatus(
+                `👾 ${txt.monsterSummoned}: ${card.name} (LV ${card.level})`
+            );
+
+            renderBoard();
+
             setTimeout(endTurn, 1000);
+
         } else {
             showStatus(txt.frontLineFull, true);
         }
-    } 
+    }
+
+    // ======================================
+    // SABOTAGE
+    // ======================================
+
     else {
+        const cardNameLower = card.name.toLowerCase();
+
+        // ==================================
+        // REVERSE
+        // Onmiddellijk de speelrichting omkeren.
+        // Er hoeft geen tegenstander gekozen te worden.
+        // ==================================
+
+        if (
+            cardNameLower.includes('reverse') ||
+            cardNameLower.includes('richting')
+        ) {
+            const playedOutOfTurn =
+                displayPlayerIndex !== currentPlayerIndex;
+
+            activePlayer.hand.splice(index, 1);
+            discardPile.push(card);
+
+            turnDirection *= -1;
+
+            pendingSabotageCard = null;
+            selectedAttacker = null;
+
+            showStatus(
+                `🔄 ${card.name}! De speelrichting is omgekeerd.`,
+                true
+            );
+
+            renderBoard();
+
+            // Bij gebruik tijdens een AI-beurt
+            // wordt die beurt onmiddellijk beëindigd.
+            if (playedOutOfTurn) {
+                clearAIActionTimer();
+            }
+
+            setTimeout(endTurn, 700);
+            return;
+        }
+
+        // ==================================
+        // ANDERE SABOTAGEKAARTEN
+        // ==================================
+
         pendingSabotageCard = {
             cardIndex: index,
-            card: card
+            card: card,
+            playerIndex: displayPlayerIndex
         };
-        showStatus(`⚡ ${card.name} - ${txt.sabotageSelected}`, true);
+
+        showStatus(
+            `⚡ ${card.name} - ${txt.sabotageSelected}`,
+            true
+        );
+
         renderBoard();
     }
 }
 
-function executeSabotageOnTarget(targetAiIndex, targetType = null, targetIndex = null) {
-    if (!pendingSabotageCard || currentPlayerIndex !== 0) return;
+// ==========================================
+// SABOTAGE UITVOEREN
+// ==========================================
+
+function executeSabotageOnTarget(
+    targetPlayerIndex,
+    targetType = null,
+    targetIndex = null
+) {
+    if (!pendingSabotageCard) return;
+
+    const ownerIndex = pendingSabotageCard.playerIndex;
+    const cardOwner = players[ownerIndex];
+
+    const activeTurnPlayer = players[currentPlayerIndex];
+    const targetPlayer = players[targetPlayerIndex];
+
     const txt = getGameText();
 
-    const activePlayer = players[0];
-    let card = activePlayer.hand.splice(pendingSabotageCard.cardIndex, 1)[0];
-    discardPile.push(card);
+    if (!cardOwner || !activeTurnPlayer || !targetPlayer) return;
+    if (targetPlayerIndex === ownerIndex) return;
 
-    let targetPlayer = players[targetAiIndex];
-    let cardNameLower = card.name.toLowerCase();
+    const isOutOfTurn = ownerIndex !== currentPlayerIndex;
 
-    if (cardNameLower.includes('demolish') || cardNameLower.includes('slopen')) {
-        let bIndex = targetIndex !== null ? targetIndex : targetPlayer.backLine.findIndex(b => b !== null);
-        if (bIndex !== -1 && targetPlayer.backLine[bIndex]) {
-            let destroyedBuilding = targetPlayer.backLine[bIndex];
-            targetPlayer.backLine[bIndex] = null;
-            discardPile.push(destroyedBuilding);
-            showStatus(`💥 ${txt.demolishDone} (${destroyedBuilding.name})`, true);
-        } else {
-            showStatus(`${targetPlayer.name} ${txt.noBuildingsToDemolish}`, true);
-        }
-    } 
-    else if (cardNameLower.includes('draw') || cardNameLower.includes('trek')) {
-        for (let d = 0; d < 2; d++) {
-            if (deck.length > 0) targetPlayer.hand.push(deck.pop());
-        }
-        showStatus(`🃏 ${txt.drawTwoDone} (${targetPlayer.name})`);
-    } 
-    else if (cardNameLower.includes('swap') || cardNameLower.includes('wissel')) {
-        let tempHand = activePlayer.hand;
-        activePlayer.hand = targetPlayer.hand;
-        targetPlayer.hand = tempHand;
-        showStatus(`🔄 ${txt.handSwapDone} (${targetPlayer.name})`);
-    } 
-    else {
-        targetPlayer.skipNextTurn = true;
-        showStatus(`⚡ ${card.name}! ${targetPlayer.name} ${txt.skipTurnDone}`, true);
-    }
+    // Haal de sabotagekaart uit de hand van de speler
+    // die de kaart daadwerkelijk heeft gespeeld.
+    const card = cardOwner.hand.splice(
+        pendingSabotageCard.cardIndex,
+        1
+    )[0];
 
-    pendingSabotageCard = null;
-    setTimeout(endTurn, 2000);
-}
-
-function endTurn() {
-    const txt = getGameText();
-    selectedAttacker = null;
-    pendingSabotageCard = null;
-
-    do {
-        currentPlayerIndex = (currentPlayerIndex + 1) % players.length;
-        if (players[currentPlayerIndex].skipNextTurn) {
-            players[currentPlayerIndex].skipNextTurn = false;
-            showStatus(`⏩ ${players[currentPlayerIndex].name} ${txt.skipTurnDone}`, true);
-        } else {
-            break;
-        }
-    } while (true);
-
-    let p = players[currentPlayerIndex];
-
-    if (pendingWinPlayer !== null && currentPlayerIndex === pendingWinPlayer) {
-        showStatus(`🎉 ${p.name} ${txt.winAlert}`, false);
-        alert(`🎉 ${p.name} ${txt.winAlert}`);
-        initGame(players.length, p.isAI ? 'ai' : 'multiplayer');
+    if (!card) {
+        pendingSabotageCard = null;
+        renderBoard();
         return;
     }
 
-    while (p.hand.length < 5 && deck.length > 0) {
-        p.hand.push(deck.pop());
+    discardPile.push(card);
+
+    const cardNameLower = card.name.toLowerCase();
+
+    let interruptCurrentTurn = false;
+
+    // ======================================
+    // DEMOLISH
+    // ======================================
+
+    if (
+        cardNameLower.includes('demolish') ||
+        cardNameLower.includes('slopen')
+    ) {
+        const bIndex = targetIndex !== null
+            ? targetIndex
+            : targetPlayer.backLine.findIndex(b => b !== null);
+
+        if (bIndex !== -1 && targetPlayer.backLine[bIndex]) {
+            const destroyedBuilding =
+                targetPlayer.backLine[bIndex];
+
+            targetPlayer.backLine[bIndex] = null;
+            discardPile.push(destroyedBuilding);
+
+            showStatus(
+                `💥 ${txt.demolishDone} (${destroyedBuilding.name})`,
+                true
+            );
+
+        } else {
+            showStatus(
+                `${targetPlayer.name} ${txt.noBuildingsToDemolish}`,
+                true
+            );
+        }
+    }
+
+    // ======================================
+    // DRAW TWO
+    // ======================================
+
+    else if (
+        cardNameLower.includes('draw') ||
+        cardNameLower.includes('trek')
+    ) {
+        for (let d = 0; d < 2; d++) {
+            if (deck.length > 0) {
+                targetPlayer.hand.push(deck.pop());
+            }
+        }
+
+        showStatus(
+            `🃏 ${txt.drawTwoDone} (${targetPlayer.name})`
+        );
+    }
+
+    // ======================================
+    // HAND SWAP
+    // ======================================
+
+    else if (
+        cardNameLower.includes('swap') ||
+        cardNameLower.includes('wissel')
+    ) {
+        const tempHand = cardOwner.hand;
+
+        cardOwner.hand = targetPlayer.hand;
+        targetPlayer.hand = tempHand;
+
+        showStatus(
+            `🔄 ${txt.handSwapDone} (${targetPlayer.name})`
+        );
+    }
+
+    // ======================================
+    // REVERSE
+    // Verandert de speelrichting.
+    // Bij gebruik buiten de eigen beurt
+    // eindigt de actieve beurt onmiddellijk.
+    // ======================================
+
+    else if (
+        cardNameLower.includes('reverse') ||
+        cardNameLower.includes('richting')
+    ) {
+        turnDirection *= -1;
+
+        showStatus(
+            `🔄 ${card.name}! De speelrichting is omgekeerd.`,
+            true
+        );
+
+        if (isOutOfTurn) {
+            interruptCurrentTurn = true;
+        }
+    }
+
+    // ======================================
+    // SKIP
+    // Buiten de eigen beurt wordt de actieve
+    // beurt onmiddellijk beëindigd.
+    // Tijdens de eigen beurt slaat het gekozen
+    // doelwit zijn volgende beurt over.
+    // ======================================
+
+    else if (
+        cardNameLower.includes('skip') ||
+        cardNameLower.includes('overslaan')
+    ) {
+        if (isOutOfTurn) {
+            interruptCurrentTurn = true;
+
+            showStatus(
+                `⏭️ ${card.name}! ${activeTurnPlayer.name} verliest zijn huidige beurt.`,
+                true
+            );
+
+        } else {
+            targetPlayer.skipNextTurn = true;
+
+            showStatus(
+                `⚡ ${card.name}! ${targetPlayer.name} ${txt.skipTurnDone}`,
+                true
+            );
+        }
+    }
+
+    // ======================================
+    // ONBEKENDE SABOTAGEKAART
+    // ======================================
+
+    else {
+        showStatus(
+            `⚠️ ${card.name}: onbekend sabotage-effect.`,
+            true
+        );
+    }
+
+    pendingSabotageCard = null;
+
+    renderBoard();
+
+    // Draw Two, Demolish en Hand Swap beëindigen
+    // de beurt van de AI niet wanneer ze buiten
+    // de eigen beurt worden gespeeld.
+    if (interruptCurrentTurn) {
+        clearAIActionTimer();
+        setTimeout(endTurn, 700);
+
+    } else if (!isOutOfTurn) {
+        setTimeout(endTurn, 2000);
+    }
+
+    // Bij een gewone sabotage buiten de eigen beurt
+    // blijft de bestaande AI-timer actief.
+}
+
+// ==========================================
+// BEURT EINDE
+// ==========================================
+
+function endTurn() {
+    if (!players.length) return;
+
+    clearAIActionTimer();
+
+    const txt = getGameText();
+
+    selectedAttacker = null;
+    pendingSabotageCard = null;
+
+    let checkedPlayers = 0;
+
+    do {
+        currentPlayerIndex =
+            (currentPlayerIndex + turnDirection + players.length) %
+            players.length;
+
+        const nextCandidate = players[currentPlayerIndex];
+
+        if (nextCandidate.skipNextTurn) {
+            nextCandidate.skipNextTurn = false;
+
+            showStatus(
+                `⏩ ${nextCandidate.name} ${txt.skipTurnDone}`,
+                true
+            );
+
+            checkedPlayers++;
+
+        } else {
+            break;
+        }
+
+    } while (checkedPlayers < players.length);
+
+    const nextPlayer = players[currentPlayerIndex];
+
+    // ======================================
+    // WINNAAR CONTROLEREN
+    // ======================================
+
+    if (
+        pendingWinPlayer !== null &&
+        currentPlayerIndex === pendingWinPlayer
+    ) {
+        showStatus(
+            `🎉 ${nextPlayer.name} ${txt.winAlert}`,
+            false
+        );
+
+        alert(`🎉 ${nextPlayer.name} ${txt.winAlert}`);
+
+        initGame(players.length, currentGameMode);
+        return;
+    }
+
+    // ======================================
+    // KAARTEN AANVULLEN TOT 5
+    // ======================================
+
+    while (nextPlayer.hand.length < 5 && deck.length > 0) {
+        nextPlayer.hand.push(deck.pop());
     }
 
     checkWinCondition();
+
+    // ======================================
+    // LOKALE MULTIPLAYER
+    // ======================================
+
+    if (currentGameMode === 'multiplayer') {
+        waitingForLocalHandoff = true;
+
+        renderBoard();
+
+        const handoffScreen =
+            document.getElementById('local-handoff-screen');
+
+        const playerName =
+            document.getElementById('handoff-player-name');
+
+        if (playerName) {
+            playerName.innerText =
+                `Geef het toestel aan ${nextPlayer.name}`;
+        }
+
+        if (handoffScreen) {
+            handoffScreen.style.display = 'flex';
+        }
+
+        return;
+    }
+
+    // ======================================
+    // AI-MODUS
+    // ======================================
+
+    waitingForLocalHandoff = false;
+
     renderBoard();
 
-    if (players[currentPlayerIndex].isAI) {
-        setTimeout(playAITurn, 1500);
+    if (nextPlayer.isAI) {
+        scheduleAIAction(playAITurn, 1500);
     }
 }
 
+// ==========================================
+// LOKALE SPELER KAN BEURT STARTEN
+// ==========================================
+
+function continueLocalTurn() {
+    if (currentGameMode !== 'multiplayer') return;
+    if (!waitingForLocalHandoff) return;
+
+    waitingForLocalHandoff = false;
+
+    const handoffScreen =
+        document.getElementById('local-handoff-screen');
+
+    if (handoffScreen) {
+        handoffScreen.style.display = 'none';
+    }
+
+    renderBoard();
+}
+
+// ==========================================
+// AI BEURT
+// ==========================================
+
 function playAITurn() {
-    let ai = players[currentPlayerIndex];
+    if (currentGameMode !== 'ai') return;
+
+    const ai = players[currentPlayerIndex];
+
+    if (!ai || !ai.isAI) return;
+
     let actionDone = false;
+
     const txt = getGameText();
 
     if (pendingWinPlayer === ai.id) {
-        showStatus(`🏆 ${ai.name} ${txt.winAlert}`, true);
+        showStatus(
+            `🏆 ${ai.name} ${txt.winAlert}`,
+            true
+        );
+
         alert(`🏆 ${ai.name} ${txt.winAlert}`);
+
         initGame(players.length, 'ai');
         return;
     }
 
-    let aiHasMonsters = ai.frontLine.some(m => m !== null);
+    // ======================================
+    // AI AANVAL
+    // ======================================
+
+    const aiHasMonsters =
+        ai.frontLine.some(m => m !== null);
+
     if (aiHasMonsters) {
-        let opponents = players.filter(p => p.id !== ai.id);
-        let targetOpponent = opponents[Math.floor(Math.random() * opponents.length)];
+        const opponents =
+            players.filter(p => p.id !== ai.id);
+
+        const targetOpponent =
+            opponents[Math.floor(Math.random() * opponents.length)];
 
         if (targetOpponent) {
-            let opponentHasMonsters = targetOpponent.frontLine.some(m => m !== null);
+            const opponentHasMonsters =
+                targetOpponent.frontLine.some(m => m !== null);
 
             if (opponentHasMonsters) {
-                let mIndex = targetOpponent.frontLine.findIndex(m => m !== null);
+                const mIndex =
+                    targetOpponent.frontLine.findIndex(m => m !== null);
+
                 if (mIndex !== -1) {
-                    let targetMonster = targetOpponent.frontLine[mIndex];
+                    const targetMonster =
+                        targetOpponent.frontLine[mIndex];
+
                     targetMonster.currentHp--;
-                    showStatus(`🤖 ${ai.name} -> ${targetOpponent.name} (${targetMonster.name})`, true);
-                    
+
+                    showStatus(
+                        `🤖 ${ai.name} -> ${targetOpponent.name} (${targetMonster.name})`,
+                        true
+                    );
+
                     if (targetMonster.currentHp <= 0) {
                         discardPile.push(targetMonster);
+
                         targetOpponent.frontLine[mIndex] = null;
                     }
+
                     actionDone = true;
                 }
+
             } else {
-                let bIndex = targetOpponent.backLine.findIndex(b => b !== null);
+                const bIndex =
+                    targetOpponent.backLine.findIndex(b => b !== null);
+
                 if (bIndex !== -1) {
-                    let targetBuilding = targetOpponent.backLine[bIndex];
-                    showStatus(`🤖 ${ai.name} -> ${targetOpponent.name} (${targetBuilding.name})`, true);
+                    const targetBuilding =
+                        targetOpponent.backLine[bIndex];
+
+                    showStatus(
+                        `🤖 ${ai.name} -> ${targetOpponent.name} (${targetBuilding.name})`,
+                        true
+                    );
+
                     discardPile.push(targetBuilding);
+
                     targetOpponent.backLine[bIndex] = null;
+
                     actionDone = true;
                 }
             }
         }
     }
 
+    // ======================================
+    // AI GEBOUW PLAATSEN
+    // ======================================
+
     if (!actionDone) {
         for (let i = 0; i < ai.hand.length; i++) {
-            let card = ai.hand[i];
+            const card = ai.hand[i];
+
             if (card.type === 'building') {
-                let alreadyHas = ai.backLine.some(c => c && c.name === card.name);
-                let emptySlot = ai.backLine.indexOf(null);
+                const alreadyHas =
+                    ai.backLine.some(
+                        c => c && c.name === card.name
+                    );
+
+                const emptySlot =
+                    ai.backLine.indexOf(null);
+
                 if (!alreadyHas && emptySlot !== -1) {
-                    ai.backLine[emptySlot] = ai.hand.splice(i, 1)[0];
-                    showStatus(`🤖 ${ai.name} ${txt.aiPlacedBuilding}: ${card.name}`);
+                    ai.backLine[emptySlot] =
+                        ai.hand.splice(i, 1)[0];
+
+                    showStatus(
+                        `🤖 ${ai.name} ${txt.aiPlacedBuilding}: ${card.name}`
+                    );
+
                     actionDone = true;
                     break;
                 }
@@ -728,18 +1607,30 @@ function playAITurn() {
         }
     }
 
+    // ======================================
+    // AI MONSTER OPROEPEN
+    // ======================================
+
     if (!actionDone) {
         for (let i = 0; i < ai.hand.length; i++) {
-            let card = ai.hand[i];
+            const card = ai.hand[i];
+
             if (card.type === 'monster') {
-                let emptySlot = ai.frontLine.indexOf(null);
+                const emptySlot =
+                    ai.frontLine.indexOf(null);
+
                 if (emptySlot !== -1) {
                     card.level = card.level || 1;
                     card.maxHp = card.level;
                     card.currentHp = card.maxHp;
 
-                    ai.frontLine[emptySlot] = ai.hand.splice(i, 1)[0];
-                    showStatus(`🤖 ${ai.name} ${txt.aiSummonedMonster}: ${card.name} (LV ${card.level})`);
+                    ai.frontLine[emptySlot] =
+                        ai.hand.splice(i, 1)[0];
+
+                    showStatus(
+                        `🤖 ${ai.name} ${txt.aiSummonedMonster}: ${card.name} (LV ${card.level})`
+                    );
+
                     actionDone = true;
                     break;
                 }
@@ -747,65 +1638,171 @@ function playAITurn() {
         }
     }
 
+    // ======================================
+    // AI SABOTAGE
+    // ======================================
+
     if (!actionDone) {
-        let sabotageIndex = ai.hand.findIndex(c => c.type !== 'building' && c.type !== 'monster');
+        const sabotageIndex =
+            ai.hand.findIndex(
+                c => c.type !== 'building' &&
+                     c.type !== 'monster'
+            );
+
         if (sabotageIndex !== -1) {
-            let sCard = ai.hand.splice(sabotageIndex, 1)[0];
-            discardPile.push(sCard);
+            const sabotageCard =
+                ai.hand.splice(sabotageIndex, 1)[0];
 
-            let opponents = players.filter(p => p.id !== ai.id);
-            let targetOpponent = opponents[Math.floor(Math.random() * opponents.length)];
-            let cardNameLower = sCard.name.toLowerCase();
+            discardPile.push(sabotageCard);
 
-            if (cardNameLower.includes('demolish') || cardNameLower.includes('slopen')) {
-                let bIndex = targetOpponent.backLine.findIndex(b => b !== null);
-                if (bIndex !== -1 && targetOpponent.backLine[bIndex]) {
-                    let destroyedBuilding = targetOpponent.backLine[bIndex];
-                    targetOpponent.backLine[bIndex] = null;
-                    discardPile.push(destroyedBuilding);
-                    showStatus(`💥 ${ai.name} speelt DEMOLISH! Gebouw (${destroyedBuilding.name}) van ${targetOpponent.name} is vernietigd!`, true);
+            const opponents =
+                players.filter(p => p.id !== ai.id);
+
+            const targetOpponent =
+                opponents[Math.floor(Math.random() * opponents.length)];
+
+            if (targetOpponent) {
+                const cardNameLower =
+                    sabotageCard.name.toLowerCase();
+
+                // DEMOLISH
+                if (
+                    cardNameLower.includes('demolish') ||
+                    cardNameLower.includes('slopen')
+                ) {
+                    const bIndex =
+                        targetOpponent.backLine.findIndex(b => b !== null);
+
+                    if (
+                        bIndex !== -1 &&
+                        targetOpponent.backLine[bIndex]
+                    ) {
+                        const destroyedBuilding =
+                            targetOpponent.backLine[bIndex];
+
+                        targetOpponent.backLine[bIndex] = null;
+
+                        discardPile.push(destroyedBuilding);
+
+                        showStatus(
+                            `💥 ${ai.name} speelt DEMOLISH! Gebouw (${destroyedBuilding.name}) van ${targetOpponent.name} is vernietigd!`,
+                            true
+                        );
+
+                    } else {
+                        showStatus(
+                            `🤖 ${ai.name} speelt ${sabotageCard.name}, maar ${targetOpponent.name} heeft geen gebouwen om te slopen.`,
+                            true
+                        );
+                    }
+
+                // DRAW TWO
+                } else if (
+                    cardNameLower.includes('draw') ||
+                    cardNameLower.includes('trek')
+                ) {
+                    for (let d = 0; d < 2; d++) {
+                        if (deck.length > 0) {
+                            targetOpponent.hand.push(deck.pop());
+                        }
+                    }
+
+                    showStatus(
+                        `🃏 ${ai.name} geeft ${targetOpponent.name} 2 extra kaarten via ${sabotageCard.name}!`
+                    );
+
+                // HAND SWAP
+                } else if (
+                    cardNameLower.includes('swap') ||
+                    cardNameLower.includes('wissel')
+                ) {
+                    const tempHand = ai.hand;
+
+                    ai.hand = targetOpponent.hand;
+                    targetOpponent.hand = tempHand;
+
+                    showStatus(
+                        `🔄 ${ai.name} heeft de handkaarten gewisseld met ${targetOpponent.name} via ${sabotageCard.name}!`,
+                        true
+                    );
+
+                // REVERSE
+                } else if (
+                    cardNameLower.includes('reverse') ||
+                    cardNameLower.includes('richting')
+                ) {
+                    turnDirection *= -1;
+
+                    showStatus(
+                        `🔄 ${ai.name} speelt ${sabotageCard.name}! De speelrichting is omgekeerd.`,
+                        true
+                    );
+
+                // SKIP
+                } else if (
+                    cardNameLower.includes('skip') ||
+                    cardNameLower.includes('overslaan')
+                ) {
+                    targetOpponent.skipNextTurn = true;
+
+                    showStatus(
+                        `⚡ ${ai.name} speelt ${sabotageCard.name}! ${targetOpponent.name} moet de volgende beurt overslaan!`,
+                        true
+                    );
+
                 } else {
-                    showStatus(`🤖 ${ai.name} speelt ${sCard.name}, maar ${targetOpponent.name} heeft geen gebouwen om te slopen.`, true);
+                    showStatus(
+                        `⚠️ ${ai.name} speelt ${sabotageCard.name}, maar het effect is niet herkend.`,
+                        true
+                    );
                 }
-            } 
-            else if (cardNameLower.includes('draw') || cardNameLower.includes('trek')) {
-                for (let d = 0; d < 2; d++) {
-                    if (deck.length > 0) targetOpponent.hand.push(deck.pop());
-                }
-                showStatus(`🃏 ${ai.name} geeft ${targetOpponent.name} 2 extra kaarten via ${sCard.name}!`);
-            } 
-            else if (cardNameLower.includes('swap') || cardNameLower.includes('wissel')) {
-                let tempHand = ai.hand;
-                ai.hand = targetOpponent.hand;
-                targetOpponent.hand = tempHand;
-                showStatus(`🔄 ${ai.name} heeft de handkaarten gewisseld met ${targetOpponent.name} via ${sCard.name}!`, true);
-            } 
-            else {
-                targetOpponent.skipNextTurn = true;
-                showStatus(`⚡ ${ai.name} speelt ${sCard.name}! ${targetOpponent.name} moet de volgende beurt overslaan!`, true);
             }
 
             actionDone = true;
         }
     }
 
+    // ======================================
+    // AI KAART AFLEGGEN
+    // ======================================
+
     if (!actionDone && ai.hand.length > 0) {
         discardPile.push(ai.hand.splice(0, 1)[0]);
-        showStatus(`🤖 ${ai.name} ${txt.aiDiscarded}.`);
+
+        showStatus(
+            `🤖 ${ai.name} ${txt.aiDiscarded}.`
+        );
     }
 
-    setTimeout(endTurn, 1500);
+    renderBoard();
+
+    scheduleAIAction(endTurn, 1500);
 }
+
+// ==========================================
+// WINCONDITIE
+// ==========================================
 
 function checkWinCondition() {
     const txt = getGameText();
-    for (let p of players) {
-        const uniqueBuildings = new Set(p.backLine.filter(c => c !== null).map(c => c.name));
+
+    for (const player of players) {
+        const uniqueBuildings = new Set(
+            player.backLine
+                .filter(c => c !== null)
+                .map(c => c.name)
+        );
+
         if (uniqueBuildings.size >= 7) {
             if (pendingWinPlayer === null) {
-                pendingWinPlayer = p.id;
-                showStatus(`🏆 ${p.name} ${txt.winWarning}!`, true);
+                pendingWinPlayer = player.id;
+
+                showStatus(
+                    `🏆 ${player.name} ${txt.winWarning}!`,
+                    true
+                );
             }
+
             return;
         }
     }

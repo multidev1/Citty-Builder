@@ -22,11 +22,11 @@ const TRANSLATIONS = {
             <h3>🎯 DOEL VAN HET SPEL</h3>
             <p>Bouw als eerste <b>7 verschillende gebouwen</b> uniek in je Back Line en verdedig ze een volledige ronde (tot het begin van je volgende beurt).</p>
 
-            <h3>🎴 HET DEK (112 Kaarten)</h3>
-            <p>Het spel wordt gespeeld met één centrale trekstapel van 112 kaarten, verdeeld in drie categorieën:</p>
+            <h3>🎴 HET DEK (111 Kaarten)</h3>
+            <p>Het spel wordt gespeeld met één centrale trekstapel van 111 kaarten, verdeeld in drie categorieën:</p>
             <ul>
                 <li><b>Gebouwen (ca. 49 kaarten):</b> Unieke locaties zoals Bank, Hotel, Kathedraal, Casino, Huis, Winkelcentrum, Internationale Luchthaven.</li>
-                <li><b>Monsters (ca. 33 kaarten):</b> Verdedigers met een Level (LV), kracht en een specifieke incasseringscapaciteit (HP = Level: LV1=1 hit, LV2=2 hits, LV3=3 hits, LV4=4 hits).</li>
+                <li><b>Monsters (ca. 32 kaarten):</b> Verdedigers met een Level (LV), kracht en een specifieke incasseringscapaciteit (HP = Level: LV1=1 hit, LV2=2 hits, LV3=3 hits, LV4=4 hits).</li>
                 <li><b>Sabotage (ca. 30 kaarten):</b> Actiekaarten die de regels breken en op elk moment gespeeld kunnen worden.</li>
             </ul>
 

@@ -155,9 +155,5 @@ const DECK_DATA = [
   { id: 107, name: "Hand Swap!", type: "action", description: "Trade your entire hand of cards with any chosen player.", image: "cards/107.png" },
   { id: 108, name: "Hand Swap!", type: "action", description: "Trade your entire hand of cards with any chosen player.", image: "cards/108.png" },
   { id: 109, name: "Hand Swap!", type: "action", description: "Trade your entire hand of cards with any chosen player.", image: "cards/109.png" },
-  { id: 110, name: "Hand Swap!", type: "action", description: "Trade your entire hand of cards with any chosen player.", image: "cards/110.png" },
-
-  // --- BUILDINGS (vervolg) ---
-  // House (111)
-  { id: 111, name: "House", type: "building", image: "cards/111.png" }
+  { id: 110, name: "Hand Swap!", type: "action", description: "Trade your entire hand of cards with any chosen player.", image: "cards/110.png" }
 ];
